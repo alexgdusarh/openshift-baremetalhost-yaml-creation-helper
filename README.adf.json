@@ -1,0 +1,6540 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "redfish-hw-inventory"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Vendor-neutral Ansible tooling for OpenShift bare-metal bring-up: discovers NIC/storage hardware from a list of BMCs (iDRAC, iLO, Lenovo XCC, Supermicro, or any DMTF Redfish 1.x compliant BMC, plus sushy-tools labs), then renders an Agent-based Installer "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " from that discovery. Structured to manage many separate OpenShift clusters (SNO through 5 masters + any number of workers) from one repo \u2014 see \"Managing multiple clusters\" below."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Stage 1",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "playbook.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") builds "
+        },
+        {
+          "type": "text",
+          "text": "<cluster>/output/hw_inventory.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 one dict keyed by inventory hostname, each entry holding:"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "network_adapters",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 every NIC, its PCI slot, port count, MAC per port,"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "and a "
+        },
+        {
+          "type": "text",
+          "text": "predicted",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " Linux interface name ("
+        },
+        {
+          "type": "text",
+          "text": "eno1",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "ens2f1",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", ...)"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "storage",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 every storage controller, physical drive, and virtual disk,"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "with a "
+        },
+        {
+          "type": "text",
+          "text": "predicted",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "/dev/disk/by-path/...",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and a "
+        },
+        {
+          "type": "text",
+          "text": "bootable",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " flag"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "name-of-the-host:\n  bmc_address: 10.10.10.11\n  model: PowerEdge R750\n  vendor: Dell Inc.\n  network_adapters: [...]\n  storage: {...}"
+        }
+      ],
+      "attrs": {
+        "language": "yaml"
+      }
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Stage 2",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "generate-agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") turns that discovery plus your own cluster/network config into "
+        },
+        {
+          "type": "text",
+          "text": "<cluster>/output/agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 see \"Generating agent-config.yaml\" further down."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "See "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/output/hw_inventory.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for a full worked example."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "How it works"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "There's a single custom module, "
+        },
+        {
+          "type": "text",
+          "text": "library/redfish_hw_facts.py",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". It talks straight to "
+        },
+        {
+          "type": "text",
+          "text": "https://<bmc>/redfish/v1/...",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " with basic auth \u2014 no Dell/HPE Python SDK, no "
+        },
+        {
+          "type": "text",
+          "text": "dellemc.openmanage",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "community.general",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " dependency. It walks:"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/redfish/v1/Chassis/{id}/NetworkAdapters",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2192 "
+                },
+                {
+                  "type": "text",
+                  "text": "Ports",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (or the older"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "NetworkDeviceFunctions",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "NetworkPorts",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " split schema) for NIC/port/MAC data"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/redfish/v1/Systems/{id}/Storage/{id}",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2192 "
+                },
+                {
+                  "type": "text",
+                  "text": "StorageControllers",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "Drives",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ","
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Volumes",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for disk data"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/redfish/v1/Systems/{id}/BootOptions",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " to flag which volume/drive is in"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "the current UEFI boot order"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The playbook ("
+        },
+        {
+          "type": "text",
+          "text": "playbook.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") has two plays: the first loops over the "
+        },
+        {
+          "type": "text",
+          "text": "bmc_hosts",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " inventory group and calls the module against each BMC ("
+        },
+        {
+          "type": "text",
+          "text": "connection: local",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", since we're talking HTTP to an out-of-band IP, not SSHing anywhere); the second aggregates every host's results into two dicts and writes them out with "
+        },
+        {
+          "type": "text",
+          "text": "to_nice_yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Requirements"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Ansible core (any reasonably recent 2.1x)"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Network access from the control node to every BMC's HTTPS management port"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "A Redfish-capable BMC. iDRAC7+ / iLO4+ / XCC all qualify."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "No extra Python packages needed \u2014 the module uses Ansible's own "
+        },
+        {
+          "type": "text",
+          "text": "fetch_url",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", not "
+        },
+        {
+          "type": "text",
+          "text": "requests",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Setup"
+        }
+      ]
+    },
+    {
+      "type": "orderedList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Copy "
+                },
+                {
+                  "type": "text",
+                  "text": "clusters/ocp-lab/",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " to "
+                },
+                {
+                  "type": "text",
+                  "text": "clusters/<your-cluster-name>/",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " as a starting point (or start from scratch \u2014 see \"Managing multiple clusters\" below for the exact layout each cluster directory needs)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Edit "
+                },
+                {
+                  "type": "text",
+                  "text": "clusters/<name>/inventory/hosts.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 one entry per BMC, "
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_ip_hostname",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " = the BMC's own IP (not the host OS IP). Named "
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_ip_hostname",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " rather than the usual "
+                },
+                {
+                  "type": "text",
+                  "text": "ansible_host",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " deliberately \u2014 every play here runs with "
+                },
+                {
+                  "type": "text",
+                  "text": "connection: local",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", so "
+                },
+                {
+                  "type": "text",
+                  "text": "ansible_host",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " would never actually be used to connect to anything, and naming it explicitly makes clear this value *is* the BMC endpoint."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Edit "
+                },
+                {
+                  "type": "text",
+                  "text": "clusters/<name>/group_vars/bmc_hosts.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 set "
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_username",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_password",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ". For real use, vault the password:"
+                }
+              ]
+            },
+            {
+              "type": "codeBlock",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "ansible-vault encrypt_string 'RootPassw0rd' --name 'bmc_password' \\\n>> clusters/<name>/group_vars/bmc_hosts.yaml"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Run it:"
+                }
+              ]
+            },
+            {
+              "type": "codeBlock",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "./run-cluster.sh <name> discover -- --ask-vault-pass"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Check "
+                },
+                {
+                  "type": "text",
+                  "text": "clusters/<name>/output/hw_inventory.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A filled-in example of the expected shape is already in "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/output/hw_inventory.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Managing multiple clusters"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Each cluster gets its own self-contained directory under "
+        },
+        {
+          "type": "text",
+          "text": "clusters/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ":"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "clusters/<cluster-name>/\n\u251c\u2500\u2500 inventory/hosts.yaml       # this cluster's BMCs, masters/workers groups\n\u251c\u2500\u2500 group_vars/bmc_hosts.yaml  # this cluster's BMC credentials\n\u251c\u2500\u2500 vars/cluster.yaml          # this cluster's name/rendezvous IP/DNS/gateway/network_profile\n\u251c\u2500\u2500 vars/network_layout.yaml   # this cluster's per-host {members, ip}\n\u2514\u2500\u2500 output/\n    \u251c\u2500\u2500 hw_inventory.yaml      # written by playbook.yaml\n    \u2514\u2500\u2500 agent-config.yaml     # written by generate-agent-config.yaml"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Both "
+        },
+        {
+          "type": "text",
+          "text": "playbook.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "generate-agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " are completely cluster-agnostic \u2014 all cluster-specific data lives in that directory, not in the playbook/module/filter code. That's a deliberate split: fixing a bug in the discovery logic or the nmstate builder fixes it for every cluster at once, instead of needing to be patched into N forked copies of the repo."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Run everything through "
+        },
+        {
+          "type": "text",
+          "text": "`run-cluster.sh`",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", which derives both "
+        },
+        {
+          "type": "text",
+          "text": "-i",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "cluster_dir",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " from a single cluster-name argument (they're always the same "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<name>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " path, so passing both separately would just be two ways of saying the same thing):"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> all              # both, in order\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Calling either playbook directly works too (both require "
+        },
+        {
+          "type": "text",
+          "text": "-i",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "cluster_dir",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " explicitly \u2014 there's no default inventory in "
+        },
+        {
+          "type": "text",
+          "text": "ansible.cfg",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on purpose, so a forgotten "
+        },
+        {
+          "type": "text",
+          "text": "-i",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " fails loudly instead of silently targeting the wrong cluster):"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "ansible-playbook playbook.yaml \\\n  -i clusters/<cluster-name>/inventory/hosts.yaml \\\n  -e cluster_dir=clusters/<cluster-name>"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Two ready-to-use examples ship in "
+        },
+        {
+          "type": "text",
+          "text": "clusters/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ":"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Directory"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "What it is"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "clusters/ocp-lab/",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Real hardware (iDRAC/iLO/XCC/etc.), 3 masters + 1 worker, bonded network"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "clusters/ocp-lab-kvm/",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "sushy-tools/KVM lab, 3 masters + 1 worker, standalone ethernet (no bond)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Master count",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ": OpenShift supports 1 (SNO), 2, 3, 4, or 5 masters \u2014 nothing in these playbooks assumes exactly 3. "
+        },
+        {
+          "type": "text",
+          "text": "role:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " comes from inventory group membership ("
+        },
+        {
+          "type": "text",
+          "text": "masters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "workers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), and every check ("
+        },
+        {
+          "type": "text",
+          "text": "rendezvous_ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " matching a master, boot-disk selection, nmstate building) operates per-host regardless of how many hosts are in either group. An SNO cluster is just an inventory with one host under "
+        },
+        {
+          "type": "text",
+          "text": "masters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and an empty (or omitted) "
+        },
+        {
+          "type": "text",
+          "text": "workers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " group \u2014 see the layout above, nothing else changes."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hostnames only need to be unique within their own cluster's inventory",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 "
+        },
+        {
+          "type": "text",
+          "text": "server01-bmc",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " reused across two different "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<name>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is fine, since each run loads exactly one inventory and writes to exactly one cluster's "
+        },
+        {
+          "type": "text",
+          "text": "output/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Lab use: sushy-tools virtual BMC on KVM/libvirt"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Validated against the "
+        },
+        {
+          "type": "text",
+          "text": "sushy-tools dynamic emulator docs",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://docs.openstack.org/sushy-tools/latest/user/dynamic-emulator.html"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and tested against a mock server shaped to match. Two things about sushy-tools' libvirt driver differ from a real BMC, and the module handles both:"
+        }
+      ]
+    },
+    {
+      "type": "orderedList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "One Redfish endpoint serves every VM",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 there's a single BMC IP/port for the whole hypervisor, not one per server."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "The System resource is keyed by libvirt domain name",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 "
+                },
+                {
+                  "type": "text",
+                  "text": "/redfish/v1/Systems/<domain>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (e.g. "
+                },
+                {
+                  "type": "text",
+                  "text": ".../Systems/vbmc-node",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ") rather than a numeric ID reached by walking the "
+                },
+                {
+                  "type": "text",
+                  "text": "Systems",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " collection."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Param"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Purpose"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "virtualbmc: true",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Fetch "
+                    },
+                    {
+                      "type": "text",
+                      "text": "/redfish/v1/Systems/<virtual_domain>",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " directly instead of walking the "
+                    },
+                    {
+                      "type": "text",
+                      "text": "Systems",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " collection"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "virtual_domain: <name>",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "The libvirt domain name, exactly as shown by "
+                    },
+                    {
+                      "type": "text",
+                      "text": "virsh list --all",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (case-sensitive). Required when "
+                    },
+                    {
+                      "type": "text",
+                      "text": "virtualbmc: true",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "use_ssl: false",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "sushy-tools defaults to plain HTTP"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "port: 8000",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "sushy-tools' default emulator port"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "See "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab-kvm/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for a ready-to-edit example (its "
+        },
+        {
+          "type": "text",
+          "text": "group_vars/bmc_hosts.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " already has the right "
+        },
+        {
+          "type": "text",
+          "text": "bmc_username",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/ "
+        },
+        {
+          "type": "text",
+          "text": "bmc_use_ssl",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "bmc_port",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for a default sushy-tools setup, since each cluster directory is fully self-contained \u2014 no "
+        },
+        {
+          "type": "text",
+          "text": "-e",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " overrides needed just to point at a lab):"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh ocp-lab-kvm discover"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "What's genuinely different in a sushy-tools lab (not just \"sparse data\")"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Chassis is NOT per-VM.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " The docs are explicit that Chassis in sushy-tools is a single shared, statically-configured (or auto-generated) resource that every System \"pretends to reside in\" \u2014 it has its own UUID unrelated to any VM's domain name. An earlier version of this module tried "
+        },
+        {
+          "type": "text",
+          "text": "/redfish/v1/Chassis/<virtual_domain>",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", which is wrong and 404s. The module no longer does this in "
+        },
+        {
+          "type": "text",
+          "text": "virtualbmc",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " mode."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "NetworkAdapters (the PCI-slot/port/MAC-per-port resource this module uses against real hardware) isn't implemented by sushy-tools at all.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " Per its feature-set docs, sushy-tools instead emulates the older, flatter "
+        },
+        {
+          "type": "text",
+          "text": "EthernetInterfaces",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " resource under "
+        },
+        {
+          "type": "text",
+          "text": "Systems/<domain>/EthernetInterfaces",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 one MAC per virtual NIC, with no PCI slot, no port grouping, no card concept. So in "
+        },
+        {
+          "type": "text",
+          "text": "virtualbmc",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " mode, "
+        },
+        {
+          "type": "text",
+          "text": "discover_network()",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " queries "
+        },
+        {
+          "type": "text",
+          "text": "EthernetInterfaces",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " instead and returns each interface with "
+        },
+        {
+          "type": "text",
+          "text": "source: \"EthernetInterfaces\"",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "pci_slot: null",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and "
+        },
+        {
+          "type": "text",
+          "text": "predicted_linux_ifname: null",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 there's genuinely no PCI location data in sushy-tools to predict a name from, not a gap in this module's logic. Requires the emulator's feature set to be "
+        },
+        {
+          "type": "text",
+          "text": "vmedia",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " or "
+        },
+        {
+          "type": "text",
+          "text": "full",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (the "
+        },
+        {
+          "type": "text",
+          "text": "minimum",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " feature set has no network resource at all)."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Because "
+        },
+        {
+          "type": "text",
+          "text": "predicted_linux_ifname",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is always "
+        },
+        {
+          "type": "text",
+          "text": "null",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " there, generating "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for a sushy-tools host needs one extra piece: "
+        },
+        {
+          "type": "text",
+          "text": "vars/network_layout.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "'s "
+        },
+        {
+          "type": "text",
+          "text": "members",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " entries accept an optional manual "
+        },
+        {
+          "type": "text",
+          "text": "name:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " field (e.g. "
+        },
+        {
+          "type": "text",
+          "text": "{adapter_id: eth0, port: 1, name: enp1s0}",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") \u2014 this code has no way to derive the real interface name from Redfish here, but you can observe it ("
+        },
+        {
+          "type": "text",
+          "text": "virsh domiflist <domain>",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", or "
+        },
+        {
+          "type": "text",
+          "text": "ip link",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "nmcli",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on a booted guest) and supply it directly. "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab-kvm/vars/network_layout.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " already does this. Without it, that host's member fails to resolve and you'll see a warning in "
+        },
+        {
+          "type": "text",
+          "text": "agent_config_warnings",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " rather than a silently wrong interface name."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Storage is a static, hand-authored dataset, not auto-discovered from the VM's real disks.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " The docs show "
+        },
+        {
+          "type": "text",
+          "text": "Storage",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "Drives",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "Volumes",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " are populated entirely from "
+        },
+        {
+          "type": "text",
+          "text": "SUSHY_EMULATOR_STORAGE",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "SUSHY_EMULATOR_DRIVES",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "SUSHY_EMULATOR_VOLUMES",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " config on the sushy-tools side (keyed by the System's ID, i.e. the domain name for the libvirt driver) \u2014 sushy-tools does not introspect the VM's actual attached libvirt volumes into this resource. If you haven't configured that, "
+        },
+        {
+          "type": "text",
+          "text": "storage.controllers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "physical_drives",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "virtual_disks",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " will correctly come back empty; that's expected, not a bug. Also note the example "
+        },
+        {
+          "type": "text",
+          "text": "Drive",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " objects in the docs have no "
+        },
+        {
+          "type": "text",
+          "text": "PhysicalLocation",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " field, so this module's "
+        },
+        {
+          "type": "text",
+          "text": "scsi_target",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " falls back to a regex on the drive "
+        },
+        {
+          "type": "text",
+          "text": "Id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "'s trailing digits, which won't always resolve cleanly for sushy-tools' free-form drive IDs (e.g. "
+        },
+        {
+          "type": "text",
+          "text": "32ADF365C6C1B7BD",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " has no trailing digit) \u2014 expect "
+        },
+        {
+          "type": "text",
+          "text": "by_path_confidence",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " to be "
+        },
+        {
+          "type": "text",
+          "text": "best_effort_pci_bdf_unknown",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for lab data."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "In short: this module's NIC/disk logic is written and validated against the real DMTF Redfish schema for physical iDRAC/iLO/XCC hardware. Against a sushy-tools lab you'll correctly get power/boot control and a bare MAC address per virtual NIC, but not PCI-slot-aware NIC/RAID modeling \u2014 that's a real capability gap in the emulator, not something to debug in this module. The "
+        },
+        {
+          "type": "text",
+          "text": "name:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " override above is what makes full "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " generation (not just discovery) still work despite that gap."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Linux interface naming algorithm"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "This reproduces systemd's predictable-network-interface-names scheme:"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Redfish signal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Predicted name"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Location.PartLocation.ServiceLabel",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " contains \"Integrated\"/\"Embedded\"/\"LOM\"/\"Onboard\""
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "eno<N>",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " \u2014 N counts sequentially across all onboard ports found"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Location.PartLocation.LocationOrdinalValue",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " = slot number, port/function 0"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "ens<slot>",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Same, function > 0 (multi-port add-in card)"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "ens<slot>f<function>",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "No location data exposed by firmware"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "predicted_linux_ifname: null",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "This is accurate whenever the firmware correctly reports ACPI "
+        },
+        {
+          "type": "text",
+          "text": "_SUN",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / SMBIOS slot data to the BMC \u2014 which Dell and HPE do consistently. Some whitebox/Supermicro boards don't populate "
+        },
+        {
+          "type": "text",
+          "text": "Location",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", in which case you'll get "
+        },
+        {
+          "type": "text",
+          "text": "null",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and should fall back to "
+        },
+        {
+          "type": "text",
+          "text": "enp<bus>s<device>f<function>",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " derived from "
+        },
+        {
+          "type": "text",
+          "text": "lspci",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on the running OS instead."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "\u26a0\ufe0f Known limitation: disk "
+        },
+        {
+          "type": "text",
+          "text": "by-path",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " accuracy"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The SCSI target portion of "
+        },
+        {
+          "type": "text",
+          "text": "/dev/disk/by-path/pci-...-scsi-H:C:T:L",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (the "
+        },
+        {
+          "type": "text",
+          "text": "T",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 drive bay / logical-drive index) is reliably derivable from Redfish via "
+        },
+        {
+          "type": "text",
+          "text": "PhysicalLocation.PartLocation.LocationOrdinalValue",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The "
+        },
+        {
+          "type": "text",
+          "text": "PCI bus:device.function",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " portion, however, is *not* part of the standard DMTF Redfish schema \u2014 it's an artifact of how the host BIOS enumerates PCI at boot, and the BMC firmware isn't required to expose it. This module opportunistically reads it from vendor OEM extensions ("
+        },
+        {
+          "type": "text",
+          "text": "Oem.Dell.DellController",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "Oem.Hpe.DeviceInstance",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), which iDRAC9+ and recent iLO firmware generally provide. When that OEM data isn't present, each drive/volume is still returned with the correct target/slot info, but "
+        },
+        {
+          "type": "text",
+          "text": "predicted_by_path",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " may be "
+        },
+        {
+          "type": "text",
+          "text": "null",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " or approximate, and "
+        },
+        {
+          "type": "text",
+          "text": "by_path_confidence",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is set to "
+        },
+        {
+          "type": "text",
+          "text": "best_effort_pci_bdf_unknown",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " so you can tell the difference programmatically."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "For a guaranteed-correct "
+        },
+        {
+          "type": "text",
+          "text": "by-path",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " value, cross-check against "
+        },
+        {
+          "type": "text",
+          "text": "lspci",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "ls -l /dev/disk/by-path/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " once the OS is actually booted \u2014 this playbook gets you there before the OS exists (e.g. for kickstart/ignition/cloud-init disk selection), but it's a prediction, not a live read."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Also note: for drives that are RAID members ("
+        },
+        {
+          "type": "text",
+          "text": "part_of_virtual_disk: true",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), the OS typically only sees the virtual disk's SCSI target, not each member physical drive's \u2014 the individual physical drives in that case are visible to the OS only via the controller's own tooling ("
+        },
+        {
+          "type": "text",
+          "text": "storcli",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "ssacli",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", etc.), not as separate "
+        },
+        {
+          "type": "text",
+          "text": "/dev/sdX",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " or "
+        },
+        {
+          "type": "text",
+          "text": "by-path",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " entries."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Generating agent-config.yaml and install-config.yaml"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "generate-agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is a second, independent playbook that reads "
+        },
+        {
+          "type": "text",
+          "text": "<cluster_dir>/output/hw_inventory.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (written by "
+        },
+        {
+          "type": "text",
+          "text": "playbook.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " above) and renders "
+        },
+        {
+          "type": "text",
+          "text": "two",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " OpenShift installer files in one run: an Agent-based Installer "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and an "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (the cluster-shape manifest \u2014 network CIDRs, VIPs, pull secret, SSH key \u2014 that accompanies it). Run the discovery playbook first, edit the vars files below, then:"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh <cluster-name> agent-config"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Output: "
+        },
+        {
+          "type": "text",
+          "text": "<cluster_dir>/output/agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "<cluster_dir>/output/install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". Full worked examples (3 masters + 1 worker) are in "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/output/agent-config.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/output/install-config.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Inputs you edit"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "File"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Purpose"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "vars/cluster.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "cluster_name",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "rendezvous_ip",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "additional_ntp_sources",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", cluster-wide "
+                    },
+                    {
+                      "type": "text",
+                      "text": "dns",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "gateway",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "network_profile",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (topology + "
+                    },
+                    {
+                      "type": "text",
+                      "text": "link_aggregation",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "), and everything install-config.yaml needs ("
+                    },
+                    {
+                      "type": "text",
+                      "text": "base_domain",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "machine_network_cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "api_vips",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "ingress_vips",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "pull_secret",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "ssh_key",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", plus optional overrides \u2014 see below)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "vars/network_layout.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Genuinely per-host data only: each host's "
+                    },
+                    {
+                      "type": "text",
+                      "text": "members",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (its own "
+                    },
+                    {
+                      "type": "text",
+                      "text": "{adapter_id, port}",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " hardware mapping) and its static "
+                    },
+                    {
+                      "type": "text",
+                      "text": "ip",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "inventory/hosts.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "masters",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "/"
+                    },
+                    {
+                      "type": "text",
+                      "text": "workers",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " groups \u2014 this is where each host's "
+                    },
+                    {
+                      "type": "text",
+                      "text": "role:",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " comes from, "
+                    },
+                    {
+                      "type": "text",
+                      "text": "and",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " where "
+                    },
+                    {
+                      "type": "text",
+                      "text": "install-config.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "'s "
+                    },
+                    {
+                      "type": "text",
+                      "text": "compute[0].replicas",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "/"
+                    },
+                    {
+                      "type": "text",
+                      "text": "controlPlane.replicas",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " come from (a plain count of each group)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Everything about *how* the network is built \u2014 bond vs standalone ethernet, the bond's name, "
+        },
+        {
+          "type": "text",
+          "text": "mode",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "mtu",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/LACP options, "
+        },
+        {
+          "type": "text",
+          "text": "vlan_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and the cluster's subnet "
+        },
+        {
+          "type": "text",
+          "text": "prefix_length",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 is defined "
+        },
+        {
+          "type": "text",
+          "text": "once",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", in "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "'s "
+        },
+        {
+          "type": "text",
+          "text": "network_profile:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " block, since OpenShift requires every node on the same single network and doesn't support mixing bonded and non-bonded nodes. "
+        },
+        {
+          "type": "text",
+          "text": "vars/network_layout.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " only holds what actually differs per server: which physical NIC ports build that network on this particular machine, and this machine's own IP."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "members",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " needs exactly 2+ entries when "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.type",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is "
+        },
+        {
+          "type": "text",
+          "text": "bond",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", or exactly 1 when it's "
+        },
+        {
+          "type": "text",
+          "text": "ethernet",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 the filter checks this and warns (rather than guessing) if the count is wrong. IPv4 is always static \u2014 a single "
+        },
+        {
+          "type": "text",
+          "text": "ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " string per host \u2014 since "
+        },
+        {
+          "type": "text",
+          "text": "rendezvousIP",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " needs a known address up front, so there's no DHCP option here. Any discovered port not listed in "
+        },
+        {
+          "type": "text",
+          "text": "members",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is automatically emitted as "
+        },
+        {
+          "type": "text",
+          "text": "type: ethernet, state: down",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "install-config.yaml fields"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "vars/cluster.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " key"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "install-config.yaml field"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required?"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "base_domain",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "baseDomain",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "machine_network_cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "platform.baremetal.machineNetwork[0].cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "api_vips",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (1 or 2 IPs)"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "platform.baremetal.apiVIPs",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "ingress_vips",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (1 or 2 IPs)"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "platform.baremetal.ingressVIPs",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "pull_secret",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "pullSecret",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required \u2014 vault this, it's tied to your Red Hat account"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "ssh_key",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "sshKey",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Required"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "cluster_network_cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "networking.clusterNetwork[0].cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Optional, defaults to "
+                    },
+                    {
+                      "type": "text",
+                      "text": "10.128.0.0/14",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "cluster_network_host_prefix",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "networking.clusterNetwork[0].hostPrefix",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Optional, defaults to "
+                    },
+                    {
+                      "type": "text",
+                      "text": "23",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "service_network_cidr",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "networking.serviceNetwork[0]",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Optional, defaults to "
+                    },
+                    {
+                      "type": "text",
+                      "text": "172.30.0.0/16",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "load_balancer_type",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "platform.baremetal.loadBalancer.type",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Optional, defaults to "
+                    },
+                    {
+                      "type": "text",
+                      "text": "OpenShiftManagedDefault",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "networking.networkType",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is always "
+        },
+        {
+          "type": "text",
+          "text": "OVNKubernetes",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (OpenShift's current default and only fully-supported CNI as of recent releases \u2014 not something this repo needs to make configurable)."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Before writing "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", the playbook actually checks the network makes sense, rather than trusting the numbers you typed:"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Every host's "
+                },
+                {
+                  "type": "text",
+                  "text": "network_layout.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " IP must fall inside"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "machine_network_cidr",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Every "
+                },
+                {
+                  "type": "text",
+                  "text": "api_vips",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "ingress_vips",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " entry must also fall inside"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "machine_network_cidr",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "api_vips",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "ingress_vips",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " must each have exactly 1 or 2 entries (IPv4,"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "or IPv4+IPv6 for dual-stack)."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A mismatch here \u2014 a VIP on the wrong subnet, a node IP that's actually outside the machine network \u2014 wouldn't be caught by "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " itself; it'd only surface much later, during actual cluster bring-up. Catching it here means a config error fails the playbook run with a message naming the exact bad value, not a stalled install hours in."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Design decisions (the template left these open, so here's what I picked)"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Only one active network per cluster, enforced by the schema, not just a runtime check.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " OpenShift's Agent-based Installer only supports a single network for the whole cluster at install time \u2014 an ethernet, an ethernet+vlan, a bond, or a bond+vlan, never more than one, and never a mix across nodes. "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.type",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "name",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "vlan_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " in "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " are singular values, defined once \u2014 there's no way to accidentally give one host a bond and another a standalone ethernet, or two different bond names, since the schema has no per-host override for any of it."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`link_aggregation` is passed through as-is, not reconstructed field by field.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.link_aggregation",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " in "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is one free-form block: the filter pulls "
+        },
+        {
+          "type": "text",
+          "text": "mode",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " out for nmstate's "
+        },
+        {
+          "type": "text",
+          "text": "link-aggregation.mode",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and forwards every other key verbatim into "
+        },
+        {
+          "type": "text",
+          "text": "link-aggregation.options",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 nothing is hardcoded to 802.3ad's option set ("
+        },
+        {
+          "type": "text",
+          "text": "lacp_rate",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "xmit_hash_policy",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", ...). Switching to "
+        },
+        {
+          "type": "text",
+          "text": "mode: active-backup",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " with "
+        },
+        {
+          "type": "text",
+          "text": "primary: eno1",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " instead just works, without touching the filter \u2014 whatever real nmstate options your chosen mode needs, put them there and they come through unchanged."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "That passthrough is checked, not left silent: each option is validated against a per-mode table ("
+        },
+        {
+          "type": "text",
+          "text": "BOND_OPTIONS_BY_MODE",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "BOND_OPTIONS_COMMON",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " in "
+        },
+        {
+          "type": "text",
+          "text": "filter_plugins/agent_config_filters.py",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") \u2014 which options make sense for which mode genuinely differs ("
+        },
+        {
+          "type": "text",
+          "text": "lacp_rate",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " only for "
+        },
+        {
+          "type": "text",
+          "text": "802.3ad",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "primary",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " only for "
+        },
+        {
+          "type": "text",
+          "text": "active-backup",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "balance-tlb",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/ "
+        },
+        {
+          "type": "text",
+          "text": "balance-alb",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", etc.) \u2014 catching wrong types, invalid enum values (e.g. "
+        },
+        {
+          "type": "text",
+          "text": "lacp_rate: medium",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), and likely typos in the option name early, in "
+        },
+        {
+          "type": "text",
+          "text": "agent_config_warnings",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". This is deliberately "
+        },
+        {
+          "type": "text",
+          "text": "non-blocking",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ": an option this table doesn't recognize is passed through with a \"verify this\" warning rather than rejected outright, since kernel bonding has around 30 possible options and this table only covers the commonly used ones \u2014 nmstate itself remains the final authority at apply time."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "DNS, the gateway, and the whole network topology are cluster-wide, not per-host.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "dns:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "gateway:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and "
+        },
+        {
+          "type": "text",
+          "text": "network_profile:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " all live once in "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". "
+        },
+        {
+          "type": "text",
+          "text": "vars/network_layout.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " only holds what's actually different per server \u2014 its own hardware mapping ("
+        },
+        {
+          "type": "text",
+          "text": "members",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") and its own "
+        },
+        {
+          "type": "text",
+          "text": "ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 because that's genuinely per-host data pulled from each server's own Redfish discovery, not a deployment choice."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`mac-address` vs `permanent-mac-address` follows real bonding behavior, not \"each interface's own MAC.\"",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " When a bond forms, Linux makes it present the *first* member's MAC to the network as the bond's active address - so "
+        },
+        {
+          "type": "text",
+          "text": "mac-address",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on every bond member, the bond itself, and any vlan stacked on top is that one shared value (the first member's). Each member's own real hardware MAC is preserved separately as "
+        },
+        {
+          "type": "text",
+          "text": "permanent-mac-address",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " - which is why the first member's two fields match, but a second member's don't. "
+        },
+        {
+          "type": "text",
+          "text": "permanent-mac-address",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " only appears on ethernet-type entries that are bond members; it's omitted on the bond entry, the vlan entry, and on a standalone (non-bonded) ethernet interface, since none of those have a second \"permanent\" MAC to distinguish from."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "IPv4 is always static, no DHCP.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "rendezvousIP",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " requires a real, known address before install even starts, so a per-host "
+        },
+        {
+          "type": "text",
+          "text": "ip:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " string plus the cluster-wide "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.prefix_length",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is all that's needed \u2014 there's no DHCP branch to account for."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`next-hop-interface` is derived automatically, not hand-typed.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " A host's "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.type",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " + its own "
+        },
+        {
+          "type": "text",
+          "text": "members",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " resolve to a single interface name \u2014 "
+        },
+        {
+          "type": "text",
+          "text": "bond0",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "ens2",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", or a vlan sub-interface like "
+        },
+        {
+          "type": "text",
+          "text": "bond0.100",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 and that's what the cluster-wide default route (via "
+        },
+        {
+          "type": "text",
+          "text": "gateway",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") gets attached to. If a host is missing its "
+        },
+        {
+          "type": "text",
+          "text": "ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", the route is "
+        },
+        {
+          "type": "text",
+          "text": "omitted",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " for that host (not guessed) and a warning is printed \u2014 see "
+        },
+        {
+          "type": "text",
+          "text": "agent_config_warnings",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " in the playbook output."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Boot disk selection (`rootDeviceHints.deviceName`)",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 filters to disks that are "
+        },
+        {
+          "type": "text",
+          "text": "bootable: true",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": ">= 120 GB",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (decimal, i.e. "
+        },
+        {
+          "type": "text",
+          "text": "120 * 10^9",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " bytes, matching how drive capacity is normally advertised), takes the first match, and picks the actual device string in this priority order:"
+        }
+      ]
+    },
+    {
+      "type": "orderedList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "predicted_by_path",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", when the discovery playbook found one \u2014 it's deterministic, which is the whole reason it exists."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/dev/sda",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", but "
+                },
+                {
+                  "type": "text",
+                  "text": "only",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " when it's the sole candidate disk (so there's no ambiguity about *which* disk "
+                },
+                {
+                  "type": "text",
+                  "text": "/dev/sda",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " would be)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Otherwise "
+                },
+                {
+                  "type": "text",
+                  "text": "null",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", with a warning printed at the end of the playbook run asking for manual review. With multiple same-size candidate disks and no by-path data, guessing kernel disk-letter order would risk silently pointing the installer at the wrong disk \u2014 that's worse than making you fill it in by hand."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "VLANs",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 a "
+        },
+        {
+          "type": "text",
+          "text": "vlan_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on a bond or standalone interface stacks a proper nmstate "
+        },
+        {
+          "type": "text",
+          "text": "vlan",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " sub-interface on top ("
+        },
+        {
+          "type": "text",
+          "text": "bond0.100",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") and moves the IPv4 config there; the base bond/interface itself carries no L3, matching how nmstate expects a VLAN topology to look. This is also why the route's "
+        },
+        {
+          "type": "text",
+          "text": "next-hop-interface",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " has to be derived (above) rather than fixed to a bond's name \u2014 it needs to be "
+        },
+        {
+          "type": "text",
+          "text": "bond0.100",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", not "
+        },
+        {
+          "type": "text",
+          "text": "bond0",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", whenever a VLAN is in play."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Role",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 comes from Ansible inventory group membership ("
+        },
+        {
+          "type": "text",
+          "text": "masters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "workers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), not a value baked into "
+        },
+        {
+          "type": "text",
+          "text": "hw_inventory.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", since role is a deployment decision, not a hardware fact. The playbook asserts every host present in "
+        },
+        {
+          "type": "text",
+          "text": "hw_inventory.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is in one of those two groups before it writes anything."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "rendezvousIP sanity check",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " \u2014 the playbook collects every master's actual configured static IP (from "
+        },
+        {
+          "type": "text",
+          "text": "vars/network_layout.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") and asserts "
+        },
+        {
+          "type": "text",
+          "text": "rendezvous_ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " matches one of them, failing fast with a clear message if not, rather than writing an "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " that points at an IP no master will actually have."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Any boot-disk or bond-member-resolution problem is collected into "
+        },
+        {
+          "type": "text",
+          "text": "agent_config_warnings",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and printed at the end of the run \u2014 check that output before applying the generated file."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Files"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                   # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 playbook.yaml                     # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml        # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs + masters/workers groups\n    \u2502   \u251c\u2500\u2500 group_vars/bmc_hosts.yaml # this cluster's BMC credentials\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config settings - see below\n    \u2502   \u2502   \u2514\u2500\u2500 network_layout.yaml   # per-host {members, ip} only\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u2514\u2500\u2500 install-config.example.yaml\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml\n        \u251c\u2500\u2500 group_vars/bmc_hosts.yaml\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u251c\u2500\u2500 vars/network_layout.yaml  # uses the manual 'name:' override (see sushy-tools section)\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u2514\u2500\u2500 install-config.example.yaml"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Add a new cluster by copying one of these two directories to "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<your-cluster-name>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and editing its contents \u2014 see \"Managing multiple clusters\" above."
+        }
+      ]
+    },
+    {
+      "type": "rule"
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "[^1]: "
+        },
+        {
+          "type": "text",
+          "text": "Importing this README into Confluence.",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "README.adf.json",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is this file converted to "
+        },
+        {
+          "type": "text",
+          "text": "Atlassian Document Format",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (ADF) \u2014 Confluence Cloud's native rich-text JSON format \u2014 by "
+        },
+        {
+          "type": "text",
+          "text": "tools/readme_to_adf.py",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". Re-run that script after editing README.md to regenerate it:"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "python3 tools/readme_to_adf.py README.md > README.adf.json"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "To create a Confluence page from it, "
+        },
+        {
+          "type": "text",
+          "text": "POST",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " to the "
+        },
+        {
+          "type": "text",
+          "text": "Confluence REST API v2 pages endpoint",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://developer.atlassian.com/cloud/confluence/rest/v2/api-group-page/#api-pages-post"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", with the ADF document JSON-encoded as a "
+        },
+        {
+          "type": "text",
+          "text": "string",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " inside "
+        },
+        {
+          "type": "text",
+          "text": "body.value",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (not nested as a raw object \u2014 the API rejects that):"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "curl -X POST \\\n  'https://<your-site>.atlassian.net/wiki/api/v2/pages' \\\n  -u '<your-email>:<your-api-token>' \\\n  -H 'Content-Type: application/json' \\\n  -d @- <<PAYLOAD\n{\n  \"spaceId\": \"<numeric-space-id>\",\n  \"status\": \"current\",\n  \"title\": \"redfish-hw-inventory README\",\n  \"body\": {\n    \"representation\": \"atlas_doc_format\",\n    \"value\": $(python3 -c \"import json,sys; print(json.dumps(open('README.adf.json').read()))\")\n  }\n}\nPAYLOAD"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes: "
+        },
+        {
+          "type": "text",
+          "text": "<your-api-token>",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is created at "
+        },
+        {
+          "type": "text",
+          "text": "id.atlassian.com/manage-profile/security/api-tokens",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://id.atlassian.com/manage-profile/security/api-tokens"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "; "
+        },
+        {
+          "type": "text",
+          "text": "spaceId",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is the numeric ID of the target space (find it via "
+        },
+        {
+          "type": "text",
+          "text": "GET /wiki/api/v2/spaces?keys=<SPACEKEY>",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "); the "
+        },
+        {
+          "type": "text",
+          "text": "$(python3 ...)",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " subshell re-serializes the ADF file's contents as a properly JSON-escaped string, which is what makes "
+        },
+        {
+          "type": "text",
+          "text": "body.value",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " a string containing JSON rather than nested JSON \u2014 the exact requirement the v2 API enforces. To update an existing page instead of creating one, use "
+        },
+        {
+          "type": "text",
+          "text": "PUT /wiki/api/v2/pages/{id}",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " with the same "
+        },
+        {
+          "type": "text",
+          "text": "body",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " shape plus a "
+        },
+        {
+          "type": "text",
+          "text": "version.number",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " incremented from the page's current version."
+        }
+      ]
+    }
+  ]
+}

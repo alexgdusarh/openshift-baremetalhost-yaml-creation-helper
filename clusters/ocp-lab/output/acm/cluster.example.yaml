@@ -1,0 +1,167 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ocp-lab
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pullsecret-ocp-lab
+  namespace: ocp-lab
+data:
+  .dockerconfigjson: Q0hBTkdFX01FIC0gcGFzdGUgeW91ciBwdWxsIHNlY3JldCBKU09OIGhlcmUgYXMgYSBzaW5nbGUtcXVvdGVkIHN0cmluZw==
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pullsecret-cluster-ocp-lab
+  namespace: ocp-lab
+  labels:
+    agent-install.openshift.io/watch: 'true'
+    cluster.open-cluster-management.io/backup: cluster
+data:
+  .dockerconfigjson: Q0hBTkdFX01FIC0gcGFzdGUgeW91ciBwdWxsIHNlY3JldCBKU09OIGhlcmUgYXMgYSBzaW5nbGUtcXVvdGVkIHN0cmluZw==
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: agent-install.openshift.io/v1beta1
+kind: InfraEnv
+metadata:
+  name: ocp-lab
+  namespace: ocp-lab
+  labels:
+    agentclusterinstalls.extensions.hive.openshift.io/location: basement
+spec:
+  agentLabels:
+    agentclusterinstalls.extensions.hive.openshift.io/location: basement
+  pullSecretRef:
+    name: pullsecret-ocp-lab
+  sshAuthorizedKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key
+  nmStateConfigLabelSelector:
+    matchLabels:
+      infraenvs.agent-install.openshift.io: ocp-lab
+  cpuArchitecture: x86_64
+status:
+  agentLabelSelector:
+    matchLabels:
+      agentclusterinstalls.extensions.hive.openshift.io/location: basement
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: capi-provider-role
+  namespace: ocp-lab
+rules:
+- verbs:
+  - '*'
+  apiGroups:
+  - agent-install.openshift.io
+  resources:
+  - agents
+---
+apiVersion: hive.openshift.io/v1
+kind: ClusterDeployment
+metadata:
+  name: ocp-lab
+  namespace: ocp-lab
+  labels:
+    cluster.open-cluster-management.io/clusterset: default
+    hive.openshift.io/cluster-platform: agent-baremetal
+spec:
+  platform:
+    agentBareMetal:
+      agentSelector: {}
+  clusterName: ocp-lab
+  baseDomain: example.com
+  pullSecretRef:
+    name: pullsecret-cluster-ocp-lab
+  clusterInstallRef:
+    kind: AgentClusterInstall
+    name: ocp-lab
+    group: extensions.hive.openshift.io
+    version: v1beta1
+  controlPlaneConfig:
+    servingCertificates: {}
+  installed: false
+---
+apiVersion: extensions.hive.openshift.io/v1beta1
+kind: AgentClusterInstall
+metadata:
+  name: ocp-lab
+  namespace: ocp-lab
+spec:
+  clusterDeploymentRef:
+    name: ocp-lab
+  holdInstallation: false
+  imageSetRef:
+    name: img4.20.13-multi-appsub
+  networking:
+    networkType: OVNKubernetes
+    clusterNetwork:
+    - cidr: 10.128.0.0/14
+      hostPrefix: 23
+    serviceNetwork:
+    - 172.30.0.0/16
+    userManagedNetworking: false
+    machineNetwork:
+    - cidr: 10.10.10.0/24
+  platformType: BareMetal
+  provisionRequirements:
+    controlPlaneAgents: 3
+    workerAgents: 1
+    arbiterAgents: 0
+  sshPublicKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key
+  apiVIP: 10.10.10.10
+  apiVIPs:
+  - 10.10.10.10
+  ingressVIP: 10.10.10.9
+  ingressVIPs:
+  - 10.10.10.9
+  manifestsConfigMapRefs: []
+---
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  name: ocp-lab
+  labels:
+    cloud: BareMetal
+    cluster.open-cluster-management.io/clusterset: default
+    feature.open-cluster-management.io/addon-application-manager: unreachable
+    feature.open-cluster-management.io/addon-cert-policy-controller: unreachable
+    feature.open-cluster-management.io/addon-cluster-proxy: unreachable
+    feature.open-cluster-management.io/addon-config-policy-controller: unreachable
+    feature.open-cluster-management.io/addon-governance-policy-framework: unreachable
+    feature.open-cluster-management.io/addon-managed-serviceaccount: unreachable
+    feature.open-cluster-management.io/addon-search-collector: unreachable
+    feature.open-cluster-management.io/addon-work-manager: unreachable
+    name: ocp-lab
+    vendor: OpenShift
+    dc: basement
+spec:
+  hubAcceptsClient: true
+  leaseDurationSeconds: 60
+  taints:
+  - effect: NoSelect
+    key: cluster.open-cluster-management.io/unreachable
+    timeAdded: '2026-09-19T04:45:59Z'
+---
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  name: ocp-lab
+  namespace: ocp-lab
+spec:
+  applicationManager:
+    enabled: true
+  certPolicyController:
+    enabled: true
+  clusterLabels:
+    cloud: BareMetal
+    vendor: OpenShift
+  clusterName: ocp-lab
+  clusterNamespace: ocp-lab
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true

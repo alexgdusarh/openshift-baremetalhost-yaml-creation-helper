@@ -1,0 +1,58 @@
+variant: fcos
+version: 1.5.0
+# variant: fcos (not "openshift") is deliberate: Butane's "openshift"
+# variant targets generating a MachineConfig for nodes already joined to
+# a cluster, applied via the Machine Config Operator - not what this is.
+# This is a standalone rescue/live boot with no cluster involved at all,
+# which needs a plain Ignition config - RHCOS is built on the same base
+# as Fedora CoreOS and consumes the identical Ignition spec for that
+# case, so "fcos" is the correct variant here (confirmed by transpiling
+# this exact file with the real butane binary against Ignition spec
+# 3.4.0 - see manage-verify-iso.yaml, which runs butane for real).
+#
+# This config is deliberately GENERIC - no hostname, no per-host data of
+# any kind. It's embedded into ONE verify.iso per OS version+arch (see
+# manage-verify-iso.yaml) and reused, unmodified, for every host in the
+# fleet. The webhook identifies which host sent a report by matching the
+# MAC addresses in the payload against hw_inventory.yaml - see
+# collect-facts.sh's header comment.
+#
+# WEBHOOK_URL is substituted by manage-verify-iso.yaml at build time
+# (once per ISO, not per boot) via a simple string replace on the
+# collector script before it's embedded here - see that playbook.
+#
+# No passwd/users section - fully headless by design. The service below
+# runs the script, which reports and powers the machine off on its own;
+# there's nothing to log in for. If you ever need to debug a boot that
+# isn't behaving, add a passwd.users block with ssh_authorized_keys back
+# in temporarily.
+storage:
+  files:
+    - path: /usr/local/bin/collect-facts.sh
+      mode: 0755
+      contents:
+        local: collect-facts.sh
+systemd:
+  units:
+    - name: collect-facts.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Collect hardware verification facts and report to webhook
+        # Deliberately not gated on network-online.target's usual strict
+        # definition - some environments' NetworkManager-wait-online is
+        # slow/flaky on a fresh live boot with no persisted connection
+        # profiles. collect-facts.sh's own curl retry loop (5 attempts,
+        # 10s apart) covers the gap instead of blocking indefinitely here.
+        After=network.target
+        Wants=network.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/collect-facts.sh
+        StandardOutput=journal+console
+        StandardError=journal+console
+        TimeoutStartSec=600
+
+        [Install]
+        WantedBy=multi-user.target

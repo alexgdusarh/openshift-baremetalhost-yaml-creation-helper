@@ -1,0 +1,100 @@
+---
+apiVersion: agent-install.openshift.io/v1beta1
+kind: NMStateConfig
+metadata:
+  name: server02-bmc.ocp-lab.example.com-network-config
+  namespace: ocp-lab
+  labels:
+    agent-install.openshift.io/bmh: server02-bmc.ocp-lab.example.com
+    infraenvs.agent-install.openshift.io: ocp-lab
+spec:
+  interfaces:
+  - name: ens2
+    macAddress: AA:BB:CC:00:44:01
+  - name: ens2f1
+    macAddress: AA:BB:CC:00:44:02
+  config:
+    interfaces:
+    - name: ens2
+      type: ethernet
+      state: up
+      mtu: 9000
+      mac-address: AA:BB:CC:00:44:01
+      permanent-mac-address: AA:BB:CC:00:44:01
+    - name: ens2f1
+      type: ethernet
+      state: up
+      mtu: 9000
+      mac-address: AA:BB:CC:00:44:01
+      permanent-mac-address: AA:BB:CC:00:44:02
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 9000
+      mac-address: AA:BB:CC:00:44:01
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - ens2
+        - ens2f1
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 10.10.10.12
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 10.10.10.1
+        search:
+        - example.com
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 10.10.10.1
+        next-hop-interface: bond0
+        table-id: 254
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: server02-bmc.ocp-lab.example.com-bmc-secret
+  namespace: ocp-lab
+type: Opaque
+data:
+  username: cm9vdA==
+  password: Q0hBTkdFX01F
+---
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: server02-bmc.ocp-lab.example.com
+  namespace: ocp-lab
+  annotations:
+    bmac.agent-install.openshift.io/hostname: server02-bmc.ocp-lab.example.com
+    bmac.agent-install.openshift.io/cluster-reference: ocp-lab/ocp-lab
+    bmac.agent-install.openshift.io/role: master
+    agent.agent-install.openshift.io/role: master
+    inspect.metal3.io: disabled
+    bmac.agent-install.openshift.io.node-label.topology.kubernetes.io/region: basement
+    bmac.agent-install.openshift.io.node-label.topology.kubernetes.io/zone: rack-1
+  labels:
+    cluster.open-cluster-management.io/backup: 'true'
+    infraenvs.agent-install.openshift.io: ocp-lab
+spec:
+  automatedCleaningMode: disabled
+  bmc:
+    address: idrac-virtualmedia://10.10.10.12/redfish/v1/Systems/System.Embedded.1
+    credentialsName: server02-bmc.ocp-lab.example.com-bmc-secret
+    disableCertificateVerification: true
+  bootMACAddress: AA:BB:CC:00:44:01
+  customDeploy:
+    method: start_assisted_install
+  online: true

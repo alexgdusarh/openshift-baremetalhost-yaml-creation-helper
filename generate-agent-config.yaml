@@ -1,0 +1,273 @@
+---
+# generate-agent-config.yaml
+#
+# Second-stage playbook: consumes <cluster_dir>/output/hw_inventory.yaml
+# (written by playbook.yaml) plus <cluster_dir>/vars/cluster.yaml (cluster
+# name, rendezvous IP, NTP, cluster-wide DNS, gateway, and
+# network_profile - the topology that's the same for every host) and
+# each host's own network_members/ip from inventory/hosts.yaml (the only
+# things that genuinely differ per server), and renders an OpenShift
+# Agent-based Installer agent-config.yaml.
+#
+# Run playbook.yaml first. Then, prefer the wrapper (supplies both -i and
+# cluster_dir from one argument):
+#   ./run-cluster.sh <cluster-name> agent-config
+#
+# Or directly:
+#   ansible-playbook generate-agent-config.yaml \
+#     -i clusters/<cluster-name>/inventory/hosts.yaml \
+#     -e cluster_dir=clusters/<cluster-name>
+#
+# All the correlation logic (matching members to discovered ports,
+# picking a boot disk, building nmstate, determining which interface
+# carries the default route) lives in filter_plugins/agent_config_filters.py
+# - see that file's docstring and README.md's "Generating agent-config.yaml"
+# section for the reasoning behind each choice.
+
+- name: Validate inputs before loading any cluster-specific vars files
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+        fail_msg: >-
+          cluster_dir is required, e.g.
+          -e cluster_dir=clusters/ocp-lab - or use
+          ./run-cluster.sh ocp-lab agent-config instead.
+
+- name: Render agent-config.yaml from discovered hardware + network layout
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - "{{ cluster_dir }}/vars/cluster.yaml"
+  vars:
+    hw_inventory_file: "{{ cluster_dir }}/output/hw_inventory.yaml"
+    output_file: "{{ cluster_dir }}/output/agent-config.yaml"
+    min_boot_disk_bytes: 120000000000  # 120 GB decimal (120 * 10^9 bytes)
+
+  tasks:
+    - name: Build network_layout from each host's network_members/ip (inventory/hosts.yaml)
+      set_fact:
+        network_layout: >-
+          {{
+            (network_layout | default({})) | combine({
+              item: {
+                'members': hostvars[item]['network_members'] | default([]),
+                'ip': hostvars[item]['ip'] | default(none),
+              }
+            })
+          }}
+      loop: "{{ groups.get('bmc_hosts', []) }}"
+
+    - name: Load discovered hardware inventory
+      set_fact:
+        hw_inventory: "{{ lookup('file', hw_inventory_file) | from_yaml }}"
+
+    - name: Sanity-check every discovered host has a role assigned in inventory
+      assert:
+        that:
+          - (item in groups.get('masters', [])) or (item in groups.get('workers', []))
+        fail_msg: >-
+          '{{ item }}' is present in hw_inventory.yaml but not in the
+          'masters' or 'workers' inventory groups - add it to
+          {{ cluster_dir }}/inventory/hosts.yaml before generating agent-config.yaml.
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Compute per-host boot-disk selection and nmstate interfaces once
+      set_fact:
+        host_facts: >-
+          {{
+            (host_facts | default({})) | combine({
+              item: {
+                'boot_disk': hw_inventory[item].storage | select_boot_disk(min_boot_disk_bytes),
+                'nmstate': hw_inventory[item].network_adapters
+                           | build_nmstate_interfaces(network_layout.get(item, {}), network_profile)
+              }
+            })
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Build each host's agent-config entry
+      set_fact:
+        agent_hosts: >-
+          {{
+            (agent_hosts | default([])) + [
+              {
+                'hostname': item,
+                'rootDeviceHints': {
+                  host_facts[item].boot_disk.hint_key: host_facts[item].boot_disk.hint_value
+                },
+                'role': 'master' if item in groups.get('masters', []) else 'worker',
+                'interfaces': hw_inventory[item].network_adapters | flatten_ports(network_layout.get(item, {})),
+                'networkConfig': {
+                  'interfaces': host_facts[item].nmstate.interfaces,
+                  'dns-resolver': dns | dns_resolver,
+                  'routes': gateway | routes_config(host_facts[item].nmstate.primary_interface,
+                                                     route_table_id | default(254))
+                }
+              }
+            ]
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Collect diagnostics (boot-disk / nmstate warnings) for review
+      set_fact:
+        agent_config_warnings: >-
+          {{
+            (agent_config_warnings | default([]))
+            + ([{'host': item, 'boot_disk': host_facts[item].boot_disk.note}]
+               if host_facts[item].boot_disk.note else [])
+            + ([{'host': item, 'network': host_facts[item].nmstate.warnings}]
+               if host_facts[item].nmstate.warnings else [])
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Collect every master's configured static IP
+      set_fact:
+        master_ips: >-
+          {{
+            (master_ips | default([]))
+            + ([network_layout[item].ip] if network_layout.get(item, {}).get('ip') else [])
+          }}
+      loop: "{{ groups.get('masters', []) }}"
+
+    - name: Sanity-check rendezvous_ip matches a real, configured master address
+      assert:
+        that:
+          - rendezvous_ip in master_ips
+        fail_msg: >-
+          rendezvous_ip ({{ rendezvous_ip }}) does not match any master's
+          configured IP in {{ cluster_dir }}/inventory/hosts.yaml ({{ master_ips }}).
+          rendezvousIP must be a real static IP assigned to one of the masters.
+      when: master_ips | default([]) | length > 0
+
+    - name: Assemble the final AgentConfig document
+      set_fact:
+        agent_config:
+          apiVersion: v1beta1
+          kind: AgentConfig
+          metadata:
+            name: "{{ cluster_name }}"
+          rendezvousIP: "{{ rendezvous_ip }}"
+          additionalNTPSources: "{{ additional_ntp_sources }}"
+          hosts: "{{ agent_hosts }}"
+
+    - name: Ensure output directory exists
+      file:
+        path: "{{ cluster_dir }}/output"
+        state: directory
+        mode: "0755"
+
+    - name: Write agent-config.yaml
+      copy:
+        dest: "{{ output_file }}"
+        # sort_keys=False preserves the dict's insertion order above
+        # (apiVersion/kind/metadata/... first) instead of to_nice_yaml's
+        # default alphabetical sort, matching standard Kubernetes-style
+        # manifest layout.
+        content: "{{ agent_config | to_nice_yaml(indent=2, width=120, sort_keys=False) }}"
+
+    - name: Set install-config.yaml defaults for optional cluster.yaml variables
+      set_fact:
+        cluster_network_cidr: "{{ cluster_network_cidr | default('10.128.0.0/14') }}"
+        cluster_network_host_prefix: "{{ cluster_network_host_prefix | default(23) }}"
+        service_network_cidr: "{{ service_network_cidr | default('172.30.0.0/16') }}"
+        load_balancer_type: "{{ load_balancer_type | default('OpenShiftManagedDefault') }}"
+
+    - name: install-config.yaml requires these cluster.yaml variables
+      assert:
+        that:
+          - base_domain is defined and base_domain | length > 0
+          - machine_network_cidr is defined and machine_network_cidr | length > 0
+          - api_vips is defined and (api_vips | length == 1 or api_vips | length == 2)
+          - ingress_vips is defined and (ingress_vips | length == 1 or ingress_vips | length == 2)
+          - pull_secret is defined and pull_secret | length > 0
+          - ssh_key is defined and ssh_key | length > 0
+        fail_msg: >-
+          install-config.yaml needs base_domain, machine_network_cidr,
+          api_vips (1 or 2 entries), ingress_vips (1 or 2 entries),
+          pull_secret, and ssh_key set in
+          {{ cluster_dir }}/vars/cluster.yaml.
+
+    - name: Sanity-check every node's IP falls inside machine_network_cidr
+      assert:
+        that:
+          - network_layout[item].ip | ip_in_network(machine_network_cidr)
+        fail_msg: >-
+          network_layout.{{ item }}.ip ({{ network_layout[item].ip }}) is
+          not inside machine_network_cidr ({{ machine_network_cidr }}).
+          Every node must be on the machine network - fix
+          {{ cluster_dir }}/vars/cluster.yaml or
+          {{ cluster_dir }}/inventory/hosts.yaml.
+      loop: "{{ network_layout.keys() | list }}"
+      when: network_layout.get(item, {}).get('ip') is not none
+
+    - name: Sanity-check apiVIPs fall inside machine_network_cidr
+      assert:
+        that:
+          - item | ip_in_network(machine_network_cidr)
+        fail_msg: >-
+          api_vips entry {{ item }} is not inside machine_network_cidr
+          ({{ machine_network_cidr }}).
+      loop: "{{ api_vips }}"
+
+    - name: Sanity-check ingressVIPs fall inside machine_network_cidr
+      assert:
+        that:
+          - item | ip_in_network(machine_network_cidr)
+        fail_msg: >-
+          ingress_vips entry {{ item }} is not inside machine_network_cidr
+          ({{ machine_network_cidr }}).
+      loop: "{{ ingress_vips }}"
+
+    - name: Assemble the install-config.yaml document
+      set_fact:
+        install_config:
+          apiVersion: v1
+          baseDomain: "{{ base_domain }}"
+          metadata:
+            name: "{{ cluster_name }}"
+          compute:
+            - name: worker
+              replicas: "{{ groups.get('workers', []) | length }}"
+          controlPlane:
+            name: master
+            replicas: "{{ groups.get('masters', []) | length }}"
+          networking:
+            clusterNetwork:
+              - cidr: "{{ cluster_network_cidr }}"
+                hostPrefix: "{{ cluster_network_host_prefix }}"
+            networkType: OVNKubernetes
+            serviceNetwork:
+              - "{{ service_network_cidr }}"
+            machineNetwork:
+              - cidr: "{{ machine_network_cidr }}"
+          platform:
+            baremetal:
+              apiVIPs: "{{ api_vips }}"
+              ingressVIPs: "{{ ingress_vips }}"
+              loadBalancer:
+                type: "{{ load_balancer_type }}"
+          pullSecret: "{{ pull_secret }}"
+          sshKey: "{{ ssh_key }}"
+
+    - name: Write install-config.yaml
+      copy:
+        dest: "{{ cluster_dir }}/output/install-config.yaml"
+        content: "{{ install_config | to_nice_yaml(indent=2, width=200, sort_keys=False) }}"
+
+    - name: Show warnings that need manual review, if any
+      debug:
+        var: agent_config_warnings
+      when: agent_config_warnings | default([]) | length > 0
+
+    - name: Done
+      debug:
+        msg:
+          - "Wrote {{ output_file }}"
+          - "Wrote {{ cluster_dir }}/output/install-config.yaml"

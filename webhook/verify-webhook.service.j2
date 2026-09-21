@@ -1,0 +1,16 @@
+[Unit]
+Description=Hardware verification webhook (receives collect-facts.sh reports)
+After=network.target
+
+[Service]
+Type=simple
+Environment=PROJECT_ROOT={{ verify_webhook_install_dir }}
+Environment=WEBHOOK_PORT={{ verify_webhook_port }}
+ExecStart=/usr/bin/python3 {{ verify_webhook_install_dir }}/webhook/verify_webhook.py
+Restart=on-failure
+RestartSec=5
+User={{ verify_webhook_user }}
+Group={{ verify_webhook_user }}
+
+[Install]
+WantedBy=multi-user.target

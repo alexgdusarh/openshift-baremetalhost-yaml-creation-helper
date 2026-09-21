@@ -1,0 +1,133 @@
+---
+# mount-verify-media.yaml
+#
+# Mounts verify.iso (built once per RHCOS version+arch by
+# manage-verify-iso.yaml, reused for every host - see that file's header
+# comment) via Redfish virtual media on ONE target host, sets a one-time
+# boot-to-CD override, and resets it. The host boots the live ISO,
+# collect-facts.sh reports to the webhook, and the machine powers itself
+# off - nothing further to do here. Check the webhook's own log/systemd
+# journal, or <cluster_dir>/output/verified/<hostname>.yaml, for the
+# result.
+#
+# This does NOT touch the target's disk in any way (live boot only, no
+# install) - safe to run against a host that already has an OS on it,
+# which is the whole point (verifying predictions against a REAL,
+# already-provisioned box - see conversation history: master-00).
+#
+# Vendor coverage: the InsertMedia/Boot-override/Reset sequence below
+# matches Dell iDRAC9's Redfish implementation exactly (confirmed against
+# this repo's own real iDRAC9 usage elsewhere). HPE iLO 5/6 and Lenovo
+# XCC implement the same DMTF-standard actions but their exact endpoint
+# paths differ - NOT verified against real HPE/Lenovo hardware here;
+# expect to adjust bmc_manager_path/bmc_virtual_media_path below for
+# those vendors (their Redfish docs list the exact paths for your
+# firmware version).
+#
+# Usage (targets ONE host by its inventory_hostname):
+#   ansible-playbook mount-verify-media.yaml \
+#     -i clusters/ocp-lab/inventory/hosts.yaml \
+#     -e cluster_dir=clusters/ocp-lab \
+#     -e target_host=server01-bmc \
+#     -e verify_iso_url='http://192.168.0.10/coreos-isos/4.20/x86_64/verify.iso'
+
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    bmc_manager_path: iDRAC.Embedded.1   # HPE iLO: usually just '1'. Lenovo XCC: check your Redfish tree.
+    bmc_system_path: System.Embedded.1   # HPE iLO: usually '1'.
+    bmc_virtual_media_id: CD             # HPE iLO: often '2' (DVD) rather than 'CD'.
+
+  tasks:
+    - name: Required variables
+      assert:
+        that:
+          - cluster_dir is defined
+          - target_host is defined
+          - verify_iso_url is defined and verify_iso_url | length > 0
+        fail_msg: >-
+          cluster_dir, target_host, and verify_iso_url are all required -
+          see this file's header comment for a full example.
+
+    - name: Load this host's BMC connection details from inventory
+      set_fact:
+        bmc_ip: "{{ hostvars[target_host]['bmc_ip_hostname'] }}"
+        bmc_user: "{{ hostvars[target_host]['bmc_username'] }}"
+        bmc_pass: "{{ hostvars[target_host]['bmc_password'] }}"
+        bmc_validate: "{{ hostvars[target_host]['bmc_validate_certs'] | default(false) }}"
+      when: target_host in (groups.get('bmc_hosts', []))
+
+    - name: target_host must actually be in this inventory
+      assert:
+        that:
+          - target_host in (groups.get('bmc_hosts', []))
+        fail_msg: >-
+          '{{ target_host }}' is not in the bmc_hosts group of
+          {{ cluster_dir }}/inventory/hosts.yaml - check the hostname and
+          that you passed the right -i.
+
+    - name: Eject any currently-mounted virtual media first (idempotency - a previous run's ISO, or a stuck mount, would otherwise block this one)
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Managers/{{ bmc_manager_path }}/VirtualMedia/{{ bmc_virtual_media_id }}/Actions/VirtualMedia.EjectMedia"
+        method: POST
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        body_format: json
+        body: {}
+        status_code: [200, 204, 400]  # 400 here typically just means "nothing was mounted" - fine
+      register: eject_result
+      failed_when: false
+
+    - name: Insert verify.iso as virtual media
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Managers/{{ bmc_manager_path }}/VirtualMedia/{{ bmc_virtual_media_id }}/Actions/VirtualMedia.InsertMedia"
+        method: POST
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        body_format: json
+        body:
+          Image: "{{ verify_iso_url }}"
+          Inserted: true
+          WriteProtected: true
+        status_code: [200, 204]
+
+    - name: Set one-time boot override to CD/virtual media
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Systems/{{ bmc_system_path }}"
+        method: PATCH
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        body_format: json
+        body:
+          Boot:
+            BootSourceOverrideEnabled: Once
+            BootSourceOverrideTarget: Cd
+        status_code: [200, 204]
+
+    - name: Power-cycle the host (ForceRestart if already on, else On)
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Systems/{{ bmc_system_path }}/Actions/ComputerSystem.Reset"
+        method: POST
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        body_format: json
+        body:
+          ResetType: "{{ 'ForceRestart' if (power_state_hint | default('On')) == 'On' else 'On' }}"
+        status_code: [200, 204]
+
+    - name: Done
+      debug:
+        msg:
+          - "{{ target_host }} is booting {{ verify_iso_url }}."
+          - "It will report to the webhook and power itself off automatically -"
+          - "nothing further to do here. Check {{ cluster_dir }}/output/verified/<hostname>.yaml"
+          - "once it's done (a few minutes), or the webhook's own log in the meantime."
