@@ -1,0 +1,136 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: ocp-lab-kvm
+rendezvousIP: 192.168.122.101
+additionalNTPSources:
+- pool.ntp.org
+hosts:
+- hostname: kvm-node01
+  rootDeviceHints:
+    deviceName: /dev/sda
+  role: master
+  interfaces:
+  - name: enp1s0
+    macAddress: 52:54:00:aa:bb:01
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 52:54:00:aa:bb:01
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.122.101
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.122.1
+        search:
+        - kvm.lab
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.122.1
+        next-hop-interface: enp1s0
+        table-id: 254
+- hostname: kvm-node02
+  rootDeviceHints:
+    deviceName: /dev/sda
+  role: master
+  interfaces:
+  - name: enp1s0
+    macAddress: 52:54:00:aa:bb:02
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 52:54:00:aa:bb:02
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.122.102
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.122.1
+        search:
+        - kvm.lab
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.122.1
+        next-hop-interface: enp1s0
+        table-id: 254
+- hostname: kvm-node03
+  rootDeviceHints:
+    deviceName: /dev/sda
+  role: master
+  interfaces:
+  - name: enp1s0
+    macAddress: 52:54:00:aa:bb:03
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 52:54:00:aa:bb:03
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.122.103
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.122.1
+        search:
+        - kvm.lab
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.122.1
+        next-hop-interface: enp1s0
+        table-id: 254
+- hostname: kvm-node04
+  rootDeviceHints:
+    deviceName: /dev/sda
+  role: worker
+  interfaces:
+  - name: enp1s0
+    macAddress: 52:54:00:aa:bb:04
+  networkConfig:
+    interfaces:
+    - name: enp1s0
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 52:54:00:aa:bb:04
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.122.104
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.122.1
+        search:
+        - kvm.lab
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.122.1
+        next-hop-interface: enp1s0
+        table-id: 254

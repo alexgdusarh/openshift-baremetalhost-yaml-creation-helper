@@ -1,0 +1,201 @@
+server01-bmc:
+  bmc_address: 10.10.10.11
+  model: PowerEdge R750
+  vendor: Dell Inc.
+  network_adapters:
+    - adapter_id: NIC.Integrated.1
+      model: Broadcom 5720 QP 1Gb
+      manufacturer: Broadcom
+      part_number: 0XXXXX
+      serial_number: null
+      onboard: true
+      pci_slot: null
+      pci_slot_service_label: NIC.Integrated.1-1
+      num_ports: 4
+      ports:
+        - port_number: 1
+          mac_address: "AA:BB:CC:00:11:01"
+          link_status: LinkUp
+          predicted_linux_ifname: eno1
+        - port_number: 2
+          mac_address: "AA:BB:CC:00:11:02"
+          link_status: LinkDown
+          predicted_linux_ifname: eno2
+        - port_number: 3
+          mac_address: "AA:BB:CC:00:11:03"
+          link_status: LinkDown
+          predicted_linux_ifname: eno3
+        - port_number: 4
+          mac_address: "AA:BB:CC:00:11:04"
+          link_status: LinkDown
+          predicted_linux_ifname: eno4
+    - adapter_id: NIC.Slot.2
+      model: Mellanox ConnectX-6 Dx Dual Port 25GbE
+      manufacturer: Mellanox
+      part_number: 0YYYYY
+      serial_number: null
+      onboard: false
+      pci_slot: 2
+      pci_slot_service_label: NIC.Slot.2-1
+      num_ports: 2
+      ports:
+        - port_number: 1
+          mac_address: "AA:BB:CC:00:22:01"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2
+        - port_number: 2
+          mac_address: "AA:BB:CC:00:22:02"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2f1
+  storage:
+    controllers:
+      - controller_id: RAID.Integrated.1-1
+        model: PERC H755
+        scsi_host_index: 0
+        pci_bus: 24
+        pci_device: 0
+        pci_function: 0
+        pci_bdf_source: oem
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "Disk.Virtual.0:RAID.Integrated.1-1"
+        name: VD0
+        raid_type: RAID1
+        capacity_bytes: 480000000000
+        controller_id: RAID.Integrated.1-1
+        member_physical_drives:
+          - "Disk.Bay.0:Enclosure.Internal.0-1:RAID.Integrated.1-1"
+          - "Disk.Bay.1:Enclosure.Internal.0-1:RAID.Integrated.1-1"
+        scsi_target: 0
+        predicted_by_path: "/dev/disk/by-path/pci-0000:18:00.0-scsi-0:0:0:0"
+        by_path_confidence: high
+        bootable: true
+
+server02-bmc:
+  bmc_address: 10.10.10.12
+  model: PowerEdge R750
+  vendor: Dell Inc.
+  network_adapters:
+    - adapter_id: NIC.Slot.2
+      model: Mellanox ConnectX-6 Dx Dual Port 25GbE
+      manufacturer: Mellanox
+      onboard: false
+      pci_slot: 2
+      pci_slot_service_label: NIC.Slot.2-1
+      num_ports: 2
+      ports:
+        - port_number: 1
+          mac_address: "AA:BB:CC:00:44:01"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2
+        - port_number: 2
+          mac_address: "AA:BB:CC:00:44:02"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2f1
+  storage:
+    controllers:
+      - controller_id: RAID.Integrated.1-1
+        model: PERC H755
+        scsi_host_index: 0
+        pci_bus: 24
+        pci_device: 0
+        pci_function: 0
+        pci_bdf_source: oem
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "Disk.Virtual.0:RAID.Integrated.1-1"
+        name: VD0
+        raid_type: RAID1
+        capacity_bytes: 480000000000
+        controller_id: RAID.Integrated.1-1
+        member_physical_drives: []
+        scsi_target: 0
+        predicted_by_path: "/dev/disk/by-path/pci-0000:18:00.0-scsi-0:0:0:0"
+        by_path_confidence: high
+        bootable: true
+
+server03-bmc:
+  bmc_address: 10.10.10.13
+  model: PowerEdge R750
+  vendor: Dell Inc.
+  network_adapters:
+    - adapter_id: NIC.Slot.2
+      model: Mellanox ConnectX-6 Dx Dual Port 25GbE
+      manufacturer: Mellanox
+      onboard: false
+      pci_slot: 2
+      pci_slot_service_label: NIC.Slot.2-1
+      num_ports: 2
+      ports:
+        - port_number: 1
+          mac_address: "AA:BB:CC:00:66:01"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2
+        - port_number: 2
+          mac_address: "AA:BB:CC:00:66:02"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2f1
+  storage:
+    controllers:
+      - controller_id: RAID.Integrated.1-1
+        model: PERC H755
+        scsi_host_index: 0
+        pci_bus: 24
+        pci_device: 0
+        pci_function: 0
+        pci_bdf_source: oem
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "Disk.Virtual.0:RAID.Integrated.1-1"
+        name: VD0
+        raid_type: RAID1
+        capacity_bytes: 480000000000
+        controller_id: RAID.Integrated.1-1
+        member_physical_drives: []
+        scsi_target: 0
+        predicted_by_path: "/dev/disk/by-path/pci-0000:18:00.0-scsi-0:0:0:0"
+        by_path_confidence: high
+        bootable: true
+
+server04-bmc:
+  bmc_address: 10.10.10.14
+  model: PowerEdge R650
+  vendor: Dell Inc.
+  network_adapters:
+    - adapter_id: NIC.Slot.2
+      model: Mellanox ConnectX-6 Dx Dual Port 25GbE
+      manufacturer: Mellanox
+      onboard: false
+      pci_slot: 2
+      pci_slot_service_label: NIC.Slot.2-1
+      num_ports: 2
+      ports:
+        - port_number: 1
+          mac_address: "AA:BB:CC:00:77:01"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2
+        - port_number: 2
+          mac_address: "AA:BB:CC:00:77:02"
+          link_status: LinkUp
+          predicted_linux_ifname: ens2f1
+  storage:
+    controllers:
+      - controller_id: RAID.Integrated.1-1
+        model: PERC H755
+        scsi_host_index: 0
+        pci_bus: 24
+        pci_device: 0
+        pci_function: 0
+        pci_bdf_source: oem
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "Disk.Virtual.0:RAID.Integrated.1-1"
+        name: VD0
+        raid_type: RAID1
+        capacity_bytes: 960000000000
+        controller_id: RAID.Integrated.1-1
+        member_physical_drives: []
+        scsi_target: 0
+        predicted_by_path: "/dev/disk/by-path/pci-0000:5e:00.0-scsi-0:0:0:0"
+        by_path_confidence: high
+        bootable: true

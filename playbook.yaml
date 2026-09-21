@@ -1,0 +1,106 @@
+---
+# redfish-hw-inventory / playbook.yaml
+#
+# Usage (prefer the wrapper, which supplies both -i and cluster_dir from
+# one argument):
+#   ./run-cluster.sh <cluster-name> discover
+#
+# Or directly:
+#   ansible-playbook playbook.yaml \
+#     -i clusters/<cluster-name>/inventory/hosts.yaml \
+#     -e cluster_dir=clusters/<cluster-name>
+#
+# Talks straight to the Redfish API on each BMC in the `bmc_hosts` group
+# (see clusters/<cluster-name>/inventory/hosts.yaml). Works unmodified
+# against iDRAC, iLO, Lenovo XCC, Supermicro, or any DMTF Redfish 1.x BMC
+# - no vendor collection required. See library/redfish_hw_facts.py for
+# the discovery logic.
+#
+# Output: <cluster_dir>/output/hw_inventory.yaml - one dict, keyed by
+# inventory_hostname, with each host's network_adapters and storage
+# nested underneath.
+
+- name: Validate inputs before touching any BMC
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+        fail_msg: >-
+          cluster_dir is required, e.g.
+          -e cluster_dir=clusters/ocp-lab - or use
+          ./run-cluster.sh ocp-lab discover instead.
+
+- name: Query Redfish and collect network + storage hardware from each BMC
+  hosts: bmc_hosts
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Query Redfish for NIC and storage inventory
+      redfish_hw_facts:
+        baseuri: "{{ bmc_ip_hostname }}"
+        username: "{{ bmc_username }}"
+        password: "{{ bmc_password }}"
+        validate_certs: "{{ bmc_validate_certs | default(false) }}"
+        use_ssl: "{{ bmc_use_ssl | default(true) }}"
+        port: "{{ bmc_port | default(omit) }}"
+        # KVM/sushy-tools lab support: set virtualbmc: true (and, per host,
+        # virtual_domain: <libvirt domain name>) in inventory when this
+        # host is a virtual BMC lab VM rather than a real server.
+        virtualbmc: "{{ virtualbmc | default(false) }}"
+        virtual_domain: "{{ virtual_domain | default(inventory_hostname) if (virtualbmc | default(false)) else omit }}"
+        # Opt-in only, per host, after confirming via a live boot (see
+        # README's interface-naming section) - defaults to false because
+        # manufacturer alone can't reliably predict this (confirmed wrong
+        # on a real Broadcom tg3 LOM during testing).
+        devlink_port_naming: "{{ devlink_port_naming | default(false) }}"
+      register: rf
+
+    - name: Stash results as host facts for the aggregation play below
+      set_fact:
+        rf_vendor: "{{ rf.vendor }}"
+        rf_model: "{{ rf.model }}"
+        rf_network_adapters: "{{ rf.network_adapters }}"
+        rf_storage: "{{ rf.storage }}"
+
+- name: Build and write the consolidated inventory file
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    output_dir: "{{ cluster_dir }}/output"
+  tasks:
+    - name: Ensure output directory exists
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Assemble one dict per server, keyed by hostname
+      set_fact:
+        hw_inventory: >-
+          {{
+            hw_inventory | default({}) | combine({
+              item: {
+                'bmc_address': hostvars[item].bmc_ip_hostname,
+                'model': hostvars[item].rf_model,
+                'vendor': hostvars[item].rf_vendor,
+                'network_adapters': hostvars[item].rf_network_adapters,
+                'storage': hostvars[item].rf_storage
+              }
+            })
+          }}
+      loop: "{{ groups['bmc_hosts'] }}"
+
+    - name: Write hw_inventory.yaml
+      copy:
+        dest: "{{ output_dir }}/hw_inventory.yaml"
+        content: "{{ hw_inventory | to_nice_yaml(indent=2, width=120) }}"
+
+    - name: Done
+      debug:
+        msg: "Wrote {{ output_dir }}/hw_inventory.yaml"

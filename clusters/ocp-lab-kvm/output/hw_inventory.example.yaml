@@ -1,0 +1,99 @@
+kvm-node01:
+  bmc_address: 192.168.122.1
+  model: null
+  vendor: null
+  network_adapters:
+    - adapter_id: eth0
+      model: null
+      manufacturer: null
+      part_number: null
+      serial_number: null
+      onboard: null
+      pci_slot: null
+      pci_slot_service_label: null
+      num_ports: 1
+      ports:
+        - port_number: 1
+          mac_address: "52:54:00:aa:bb:01"
+          link_status: LinkUp
+          predicted_linux_ifname: null
+      source: EthernetInterfaces
+      note: >-
+        sushy-tools/KVM lab: this VM's virtual NIC has no PCI slot or
+        adapter data in Redfish, so a systemd interface name cannot be
+        predicted the way it can for real hardware. Supply the real
+        observed name via network_layout.yaml's 'name:' override.
+  storage:
+    controllers: []
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "vd0"
+        capacity_bytes: 128849018880
+        bootable: true
+        predicted_by_path: null
+
+kvm-node02:
+  bmc_address: 192.168.122.1
+  model: null
+  vendor: null
+  network_adapters:
+    - adapter_id: eth0
+      num_ports: 1
+      ports:
+        - port_number: 1
+          mac_address: "52:54:00:aa:bb:02"
+          link_status: LinkUp
+          predicted_linux_ifname: null
+      source: EthernetInterfaces
+  storage:
+    controllers: []
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "vd0"
+        capacity_bytes: 128849018880
+        bootable: true
+        predicted_by_path: null
+
+kvm-node03:
+  bmc_address: 192.168.122.1
+  model: null
+  vendor: null
+  network_adapters:
+    - adapter_id: eth0
+      num_ports: 1
+      ports:
+        - port_number: 1
+          mac_address: "52:54:00:aa:bb:03"
+          link_status: LinkUp
+          predicted_linux_ifname: null
+      source: EthernetInterfaces
+  storage:
+    controllers: []
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "vd0"
+        capacity_bytes: 128849018880
+        bootable: true
+        predicted_by_path: null
+
+kvm-node04:
+  bmc_address: 192.168.122.1
+  model: null
+  vendor: null
+  network_adapters:
+    - adapter_id: eth0
+      num_ports: 1
+      ports:
+        - port_number: 1
+          mac_address: "52:54:00:aa:bb:04"
+          link_status: LinkUp
+          predicted_linux_ifname: null
+      source: EthernetInterfaces
+  storage:
+    controllers: []
+    physical_drives: []
+    virtual_disks:
+      - volume_id: "vd0"
+        capacity_bytes: 128849018880
+        bootable: true
+        predicted_by_path: null

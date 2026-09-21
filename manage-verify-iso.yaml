@@ -1,0 +1,157 @@
+---
+# manage-verify-iso.yaml
+#
+# Builds (or re-uses, if already built) ONE verify.iso per RHCOS
+# version+arch, served from this box's existing Apache instance for
+# Redfish virtual media to mount - no PXE/TFTP infrastructure needed,
+# since virtual media boot works over plain HTTP from any web server.
+#
+# The Ignition embedded into this ISO is deliberately generic (no
+# hostname, no per-host anything - see verify-boot/verify.bu's header
+# comment), so this ISO is reused UNCHANGED for every host you verify -
+# you do NOT need to run this per host, only once per RHCOS version+arch
+# you want to boot for verification. mount-verify-media.yaml (a separate
+# playbook) points any host at this same ISO.
+#
+# Requires on the Ansible control node: podman (to run coreos-installer,
+# via its official container image - avoids needing coreos-installer
+# installed as an RPM). butane is fetched automatically as a small static
+# binary if not already present locally.
+#
+# Usage:
+#   ansible-playbook manage-verify-iso.yaml \
+#     -e rhcos_iso_url='https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/4.20/latest/rhcos-4.20.0-x86_64-live.x86_64.iso' \
+#     -e rhcos_version=4.20 \
+#     -e webhook_url='http://192.168.0.10:8090'
+#
+# Output: <iso_web_root>/<rhcos_version>/<arch>/verify.iso
+# (iso_web_root defaults to /var/www/html/coreos-isos - override with
+# -e iso_web_root=... if Apache's docroot differs)
+
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    iso_web_root: /var/www/html/coreos-isos
+    arch: x86_64
+    butane_version: "0.29.0"
+    butane_bin: /usr/local/bin/butane
+
+  tasks:
+    - name: Required variables
+      assert:
+        that:
+          - rhcos_iso_url is defined and rhcos_iso_url | length > 0
+          - rhcos_version is defined and rhcos_version | length > 0
+          - webhook_url is defined and webhook_url | length > 0
+        fail_msg: >-
+          rhcos_iso_url, rhcos_version, and webhook_url are all required,
+          e.g. -e rhcos_iso_url=https://mirror.openshift.com/... -e
+          rhcos_version=4.20 -e webhook_url=http://192.168.0.10:8090 -
+          see this file's header comment for a full example.
+
+    - name: Versioned/arch-specific output directory
+      set_fact:
+        iso_out_dir: "{{ iso_web_root }}/{{ rhcos_version }}/{{ arch }}"
+        build_dir: "/tmp/verify-iso-build-{{ rhcos_version }}-{{ arch }}"
+
+    - name: Ensure output and build directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ iso_out_dir }}"
+        - "{{ build_dir }}"
+
+    - name: Check whether verify.iso already exists for this version+arch
+      stat:
+        path: "{{ iso_out_dir }}/verify.iso"
+      register: existing_iso
+
+    - name: Skip build - verify.iso already exists (pass -e force_rebuild=true to rebuild)
+      debug:
+        msg: >-
+          {{ iso_out_dir }}/verify.iso already exists - not rebuilding.
+          Pass -e force_rebuild=true to force a rebuild (e.g. after
+          editing verify-boot/collect-facts.sh or verify-boot/verify.bu).
+      when: existing_iso.stat.exists and not (force_rebuild | default(false) | bool)
+
+    - name: Build the verify.iso
+      when: not existing_iso.stat.exists or (force_rebuild | default(false) | bool)
+      block:
+        - name: Download the base RHCOS live ISO if not already cached
+          get_url:
+            url: "{{ rhcos_iso_url }}"
+            dest: "{{ iso_out_dir }}/base-live.iso"
+            mode: "0644"
+            checksum: "{{ rhcos_iso_checksum | default(omit) }}"
+            timeout: 1800
+
+        - name: Check for a local butane binary
+          stat:
+            path: "{{ butane_bin }}"
+          register: butane_stat
+
+        - name: Download butane if not already present
+          get_url:
+            url: "https://github.com/coreos/butane/releases/download/v{{ butane_version }}/butane-{{ 'aarch64' if arch == 'aarch64' else 'x86_64' }}-unknown-linux-gnu"
+            dest: "{{ butane_bin }}"
+            mode: "0755"
+          when: not butane_stat.stat.exists
+
+        - name: Stage the generic collector script with this build's webhook URL substituted
+          copy:
+            src: verify-boot/collect-facts.sh
+            dest: "{{ build_dir }}/collect-facts.sh"
+            mode: "0755"
+
+        - name: Substitute the webhook URL into the staged script
+          replace:
+            path: "{{ build_dir }}/collect-facts.sh"
+            regexp: '__WEBHOOK_URL__'
+            replace: "{{ webhook_url }}"
+
+        - name: Stage the Butane config (no substitution needed - it's fully generic)
+          copy:
+            src: verify-boot/verify.bu
+            dest: "{{ build_dir }}/verify.bu"
+            mode: "0644"
+
+        - name: Transpile Butane -> Ignition
+          command:
+            cmd: "{{ butane_bin }} --files-dir {{ build_dir }} --pretty --strict verify.bu"
+            chdir: "{{ build_dir }}"
+          register: butane_out
+          changed_when: true
+
+        - name: Write the transpiled Ignition config
+          copy:
+            content: "{{ butane_out.stdout }}"
+            dest: "{{ build_dir }}/verify.ign"
+            mode: "0644"
+
+        - name: Embed the Ignition config into a fresh copy of the base ISO (via coreos-installer container)
+          command:
+            cmd: >-
+              podman run --rm --pull=missing
+              -v {{ iso_out_dir }}:/iso:z
+              -v {{ build_dir }}:/build:z
+              quay.io/coreos/coreos-installer:release
+              iso ignition embed -f -i /build/verify.ign
+              -o /iso/verify.iso /iso/base-live.iso
+          changed_when: true
+
+        - name: Verify the embed actually produced a non-empty ISO
+          stat:
+            path: "{{ iso_out_dir }}/verify.iso"
+          register: final_iso
+          failed_when: not final_iso.stat.exists or final_iso.stat.size < 100000000  # sanity floor: 100MB
+
+        - name: Done
+          debug:
+            msg:
+              - "Built {{ iso_out_dir }}/verify.iso ({{ (final_iso.stat.size / 10**9) | round(2) }} GB)"
+              - "Point mount-verify-media.yaml's verify_iso_url at this file's Apache URL,"
+              - "e.g. http://<this-host>/coreos-isos/{{ rhcos_version }}/{{ arch }}/verify.iso"
+              - "(assuming {{ iso_web_root }} is under Apache's DocumentRoot)"

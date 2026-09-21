@@ -1,0 +1,152 @@
+---
+# Cluster-level values for agent-config.yaml. Everything here is the same
+# for every host in the cluster - DNS, the default-route gateway, AND the
+# network profile (bond-vs-ethernet, name, vlan, subnet prefix) are all
+# cluster-wide constants in a real deployment, not per-host data.
+#
+# vars/network_layout.yaml only holds what's genuinely per-host: each
+# server's own discovered {adapter_id, port} mapping and its own static
+# IP address.
+cluster_name: openshift
+
+# Required. The cluster's base DNS domain - install-config.yaml's
+# metadata.name + baseDomain together form the cluster's full domain
+# (e.g. ocp-lab.example.com).
+base_domain: training
+
+# Must be a real static IP that ends up assigned to ONE of the masters in
+# vars/network_layout.yaml (OpenShift supports 1 (SNO), 2, 3, 4, or 5
+# masters - whatever count your inventory's `masters` group has). The
+# playbook asserts this matches before writing agent-config.yaml.
+rendezvous_ip: 192.168.0.22
+
+additional_ntp_sources:
+  - pool.ntp.org
+
+# Default-route gateway, same for every host. The playbook builds each
+# host's single default route (0.0.0.0/0 via this gateway) automatically,
+# assigning it to whichever interface network_profile.type resolves to
+# (bond, ethernet, or a vlan stacked on either) - OpenShift's Agent-based
+# Installer only supports one network at install time.
+gateway: 192.168.0.254
+
+# Optional: routing table ID for the default route. Defaults to 254
+# (the standard Linux 'main' table) if omitted.
+route_table_id: 254
+
+dns:
+  server:
+    - 192.168.0.254
+  search:
+    - openshift.training
+
+# The cluster's network topology - identical for every host, since
+# OpenShift requires every node on the same single network/subnet.
+# Individual servers only contribute their own {adapter_id, port}
+# mapping and IP address (vars/network_layout.yaml); everything about
+# *how* the network is built is defined once, here.
+network_profile:
+  # 'bond' or 'ethernet'. Every host in the cluster uses the same type -
+  # OpenShift doesn't support a mix (some nodes bonded, some not).
+  type: bond
+
+  # Required when type: bond. Same bond interface name on every host
+  # (e.g. bond0). Ignored when type: ethernet.
+  name: bond0
+
+  mtu: 1500
+
+  # Set an integer to stack a VLAN sub-interface (e.g. bond0.100) on top
+  # of the bond/ethernet and move the IP there instead; null for none.
+  # Same VLAN (or none) for every host.
+  vlan_id: 200
+
+  # Subnet size for the whole cluster - OpenShift nodes can't span
+  # different networks, so this is one value, not per-host.
+  prefix_length: 24
+
+  # Bond-only, ignored when type: ethernet. `mode` is pulled out and
+  # placed at nmstate's link-aggregation.mode; every OTHER key here is
+  # passed straight through, verbatim, into link-aggregation.options -
+  # nothing is hardcoded or defaulted, so this isn't limited to 802.3ad's
+  # option set. Use whatever nmstate options your chosen mode needs, e.g.
+  # for active-backup: `mode: active-backup` + `primary: eno1` instead of
+  # the lacp_rate/xmit_hash_policy/etc shown below for 802.3ad.
+  link_aggregation:
+    mode: 802.3ad
+    lacp_rate: fast
+    lp_interval: 1
+    miimon: 100
+    xmit_hash_policy: layer3+4
+    lacp_active: true
+
+# --- install-config.yaml -----------------------------------------------
+# Everything below is only used by install-config.yaml, not agent-config.yaml.
+
+
+# Required. install-config.yaml's platform.baremetal.machineNetwork.cidr.
+# Every node's IP (network_layout.yaml) and every apiVIPs/ingressVIPs
+# entry below must fall inside this CIDR - the playbook asserts this
+# before writing install-config.yaml, since a mismatch here wouldn't
+# surface until much later, during actual cluster bring-up. This should
+# match the subnet implied by network_profile.prefix_length above (e.g.
+# prefix_length: 24 here implies a /24 machine_network_cidr).
+machine_network_cidr: 192.168.0.0/24
+
+# Required. 1 or 2 entries (IPv4, or IPv4+IPv6 for dual-stack), each
+# inside machine_network_cidr. These become the API server's virtual IP(s).
+api_vips:
+  - 192.168.0.20
+
+# Required. Same rules as api_vips - the ingress router's virtual IP(s).
+ingress_vips:
+  - 192.168.0.21
+
+# Optional, defaults to 'OpenShiftManagedDefault' if omitted.
+load_balancer_type: OpenShiftManagedDefault
+
+# Required. Your Red Hat pull secret (from
+# https://console.redhat.com/openshift/install/pull-secret) as a single
+# JSON string. Vault this for real use - it's tied to your Red Hat
+# account entitlements:
+#   ansible-vault encrypt_string '{"auths":{...}}' --name 'pull_secret' \
+#     >> clusters/<name>/vars/cluster.yaml
+pull_secret: 'CHANGE_ME - paste your pull secret JSON here as a single-quoted string'
+
+# Required. The public half of an SSH key pair, added to core@ on every
+# node for debugging access.
+ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key"
+
+# --- ACM / Assisted-Installer manifests (generate-acm-manifests.yaml) --
+# Everything below is only used by generate-acm-manifests.yaml, not
+# agent-config.yaml or install-config.yaml. The namespace all generated
+# CRs live in = InfraEnv name = cluster_name above - not a separate var.
+
+# Required. OCP release version, used to build AgentClusterInstall's
+# imageSetRef.name as "img<ocp_version>-multi-appsub" (e.g. 4.20.13 ->
+# img4.20.13-multi-appsub). Must match a ClusterImageSet already present
+# on the ACM hub - this playbook does not create one.
+ocp_version: "4.20.13"
+
+# Optional. Arbitrary user-defined key/value labels applied as-is
+# (unprefixed - unlike infraenv_labels below) to ManagedCluster's
+# metadata.labels, alongside the fixed set this playbook always adds
+# (cloud, vendor, name, the addon feature labels, clusterset). "dc" here
+# is just an example key - use whatever label(s) your ACM setup needs
+# (site, environment, datacenter, business unit...).
+managed_cluster_labels:
+  dc: basement
+
+# Optional, defaults to 'default' if omitted. ACM ManagedClusterSet name -
+# used as both ClusterDeployment's and ManagedCluster's
+# cluster.open-cluster-management.io/clusterset label.
+managed_clusterset: default
+
+# Optional. Arbitrary key/value pairs rendered as
+# agentclusterinstalls.extensions.hive.openshift.io/<key>: <value> on
+# InfraEnv's metadata.labels, spec.agentLabels, and
+# status.agentLabelSelector.matchLabels (and matched by every
+# BareMetalHost's agentLabelSelector in ACM). "location" here is just an
+# example key - use whatever label(s) your ACM setup keys agents on.
+infraenv_labels:
+  location: basement

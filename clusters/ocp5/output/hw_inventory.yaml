@@ -1,0 +1,456 @@
+master-00:
+  bmc_address: 192.168.1.10
+  model: PowerEdge R240
+  network_adapters:
+  - adapter_id: NIC.Embedded.1
+    manufacturer: Broadcom Inc. and subsidiaries
+    model: null
+    num_ports: 2
+    onboard: true
+    part_number: null
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkUp
+      mac_address: 6C:3C:8C:65:52:19
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 6C:3C:8C:65:52:1A
+      port_number: 2
+      predicted_linux_ifname: eno2
+    serial_number: null
+  storage:
+    controllers:
+    - controller_id: AHCI.Embedded.1-1
+      model: Cannon Lake PCH SATA AHCI Controller
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      drive_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      media_type: HDD
+      model: 03ABYX-18WERA0
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SATA
+      scsi_target: 0
+      serial_number: WD WMAYP3974446
+      wwn: '0x50014ee0adfe2945'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      member_physical_drives:
+      - Disk.Direct.0-0:AHCI.Embedded.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: WD WMAYP3974446
+      volume_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      wwn: '0x50014ee0adfe2945'
+      wwn_format: NAA
+  vendor: Dell Inc.
+master-01:
+  bmc_address: 192.168.1.11
+  model: PowerEdge R240
+  network_adapters:
+  - adapter_id: NIC.Embedded.1
+    manufacturer: Broadcom Inc. and subsidiaries
+    model: null
+    num_ports: 2
+    onboard: true
+    part_number: null
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 6C:3C:8C:66:60:35
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 6C:3C:8C:66:60:36
+      port_number: 2
+      predicted_linux_ifname: eno2
+    serial_number: null
+  storage:
+    controllers:
+    - controller_id: AHCI.Embedded.1-1
+      model: Cannon Lake PCH SATA AHCI Controller
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      drive_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      media_type: HDD
+      model: 03ABYX-18WERA0
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SATA
+      scsi_target: 0
+      serial_number: WD WMAYP4412188
+      wwn: '0x50014ee058accf48'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      member_physical_drives:
+      - Disk.Direct.0-0:AHCI.Embedded.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: WD WMAYP4412188
+      volume_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      wwn: '0x50014ee058accf48'
+      wwn_format: NAA
+  vendor: Dell Inc.
+master-02:
+  bmc_address: 192.168.1.12
+  model: PowerEdge R240
+  network_adapters:
+  - adapter_id: NIC.Embedded.1
+    manufacturer: Broadcom Inc. and subsidiaries
+    model: null
+    num_ports: 2
+    onboard: true
+    part_number: null
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkUp
+      mac_address: 6C:3C:8C:65:06:C9
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 6C:3C:8C:65:06:CA
+      port_number: 2
+      predicted_linux_ifname: eno2
+    serial_number: null
+  storage:
+    controllers:
+    - controller_id: AHCI.Embedded.1-1
+      model: Cannon Lake PCH SATA AHCI Controller
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      drive_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      media_type: HDD
+      model: 03ABYX-18WERA0
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SATA
+      scsi_target: 0
+      serial_number: WD WMAYP3332255
+      wwn: '0x50014ee0032753c0'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 500107862016
+      controller_id: AHCI.Embedded.1-1
+      member_physical_drives:
+      - Disk.Direct.0-0:AHCI.Embedded.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: WD WMAYP3332255
+      volume_id: Disk.Direct.0-0:AHCI.Embedded.1-1
+      wwn: '0x50014ee0032753c0'
+      wwn_format: NAA
+  vendor: Dell Inc.
+worker-00:
+  bmc_address: 192.168.1.13
+  model: VxFlex integrated rack R640 C
+  network_adapters:
+  - adapter_id: NIC.Integrated.1
+    manufacturer: Intel Corporation
+    model: Intel(R) 2P X710/2P I350 rNDC
+    num_ports: 4
+    onboard: true
+    part_number: 06VDPG
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:98:22
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:98:24
+      port_number: 2
+      predicted_linux_ifname: eno2
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:98:42
+      port_number: 3
+      predicted_linux_ifname: eno3
+    - devlink_port_name_guessed: false
+      link_status: LinkUp
+      mac_address: 78:AC:44:28:98:43
+      port_number: 4
+      predicted_linux_ifname: eno4
+    serial_number: MYFLMIT0BS018T
+  storage:
+    controllers:
+    - controller_id: NonRAID.Integrated.1-1
+      model: Dell HBA330 Mini
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    - controller_id: AHCI.Embedded.2-1
+      model: C620 Series Chipset Family SATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 1
+    - controller_id: AHCI.Embedded.1-1
+      model: C620 Series Chipset Family SSATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 2
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      drive_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      media_type: HDD
+      model: ST1000NX0453
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SAS
+      scsi_target: 0
+      serial_number: ''
+      wwn: '0x5000c500d9d7f925'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      member_physical_drives:
+      - Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: ''
+      volume_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      wwn: '0x5000c500d9d7f925'
+      wwn_format: NAA
+  vendor: Dell Inc.
+worker-01:
+  bmc_address: 192.168.1.14
+  model: VxFlex integrated rack R640 C
+  network_adapters:
+  - adapter_id: NIC.Integrated.1
+    manufacturer: Intel Corporation
+    model: Intel(R) 2P X710/2P I350 rNDC
+    num_ports: 4
+    onboard: true
+    part_number: 06VDPG
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:C2:20
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:C2:22
+      port_number: 2
+      predicted_linux_ifname: eno2
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:28:C2:40
+      port_number: 3
+      predicted_linux_ifname: eno3
+    - devlink_port_name_guessed: false
+      link_status: LinkUp
+      mac_address: 78:AC:44:28:C2:41
+      port_number: 4
+      predicted_linux_ifname: eno4
+    serial_number: MYFLMIT0BS01HK
+  storage:
+    controllers:
+    - controller_id: NonRAID.Integrated.1-1
+      model: Dell HBA330 Mini
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    - controller_id: AHCI.Embedded.2-1
+      model: C620 Series Chipset Family SATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 1
+    - controller_id: AHCI.Embedded.1-1
+      model: C620 Series Chipset Family SSATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 2
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      drive_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      media_type: HDD
+      model: ST1000NX0453
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SAS
+      scsi_target: 0
+      serial_number: ''
+      wwn: '0x5000c500d9d7d965'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      member_physical_drives:
+      - Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: ''
+      volume_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      wwn: '0x5000c500d9d7d965'
+      wwn_format: NAA
+  vendor: Dell Inc.
+worker-02:
+  bmc_address: 192.168.1.15
+  model: VxFlex integrated rack R640 C
+  network_adapters:
+  - adapter_id: NIC.Integrated.1
+    manufacturer: Intel Corporation
+    model: Intel(R) 2P X710/2P I350 rNDC
+    num_ports: 4
+    onboard: true
+    part_number: 06VDPG
+    pci_slot: null
+    pci_slot_service_label: null
+    ports:
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:22:F8:88
+      port_number: 1
+      predicted_linux_ifname: eno1
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:22:F8:8A
+      port_number: 2
+      predicted_linux_ifname: eno2
+    - devlink_port_name_guessed: false
+      link_status: LinkDown
+      mac_address: 78:AC:44:22:F8:A8
+      port_number: 3
+      predicted_linux_ifname: eno3
+    - devlink_port_name_guessed: false
+      link_status: LinkUp
+      mac_address: 78:AC:44:22:F8:A9
+      port_number: 4
+      predicted_linux_ifname: eno4
+    serial_number: MYFLMIT0BI03A7
+  storage:
+    controllers:
+    - controller_id: NonRAID.Integrated.1-1
+      model: Dell HBA330 Mini
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 0
+    - controller_id: AHCI.Embedded.1-1
+      model: C620 Series Chipset Family SSATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 1
+    - controller_id: AHCI.Embedded.2-1
+      model: C620 Series Chipset Family SATA Controller [AHCI mode]
+      pci_bdf_source: unknown
+      pci_bus: null
+      pci_device: null
+      pci_function: null
+      scsi_host_index: 2
+    physical_drives:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      drive_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      media_type: HDD
+      model: ST1000NX0453
+      part_of_virtual_disk: true
+      predicted_by_path: null
+      protocol: SAS
+      scsi_target: 0
+      serial_number: ''
+      wwn: '0x5000c500d9d41901'
+      wwn_format: NAA
+    virtual_disks:
+    - bootable: false
+      by_path_confidence: best_effort_pci_bdf_unknown
+      capacity_bytes: 1000204885504
+      controller_id: NonRAID.Integrated.1-1
+      member_physical_drives:
+      - Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      name: Physical Disk 0:1:0
+      predicted_by_path: null
+      raid_type: RawDevice
+      scsi_target: 0
+      serial_number: ''
+      volume_id: Disk.Bay.0:Enclosure.Internal.0-1:NonRAID.Integrated.1-1
+      wwn: '0x5000c500d9d41901'
+      wwn_format: NAA
+  vendor: Dell Inc.

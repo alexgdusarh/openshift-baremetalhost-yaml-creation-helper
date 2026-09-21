@@ -1,0 +1,29 @@
+apiVersion: v1
+baseDomain: kvm.lab
+metadata:
+  name: ocp-lab-kvm
+compute:
+- name: worker
+  replicas: 1
+controlPlane:
+  name: master
+  replicas: 3
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+  machineNetwork:
+  - cidr: 192.168.122.0/24
+platform:
+  baremetal:
+    apiVIPs:
+    - 192.168.122.10
+    ingressVIPs:
+    - 192.168.122.9
+    loadBalancer:
+      type: OpenShiftManagedDefault
+pullSecret: CHANGE_ME - paste your pull secret JSON here as a single-quoted string
+sshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key

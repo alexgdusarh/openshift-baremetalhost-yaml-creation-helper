@@ -1,0 +1,143 @@
+---
+# List every server's BMC (iDRAC / iLO / XCC / generic Redfish) IP here,
+# plus its network-build members and static IP - this file is the single
+# per-host source of truth: BMC endpoint, credentials, network layout,
+# labels, and masters/workers role, all keyed by the same inventory
+# hostname. (Older versions of this repo split members/ip into a
+# separate vars/network_layout.yaml, keyed by the same hostnames - that
+# required keeping two files' keys in sync and was a real source of
+# typo bugs; consolidated here instead.)
+#
+# bmc_ip_hostname = the BMC's own IP address, NOT the host OS's IP.
+# (Deliberately not using the built-in `ansible_host` var: every play in
+# this repo runs with connection: local, so `ansible_host` would never
+# actually be used to connect to anything - naming it bmc_ip_hostname
+# instead makes it unambiguous that this value IS the BMC endpoint, not
+# a normal Ansible connection target.)
+#
+# inventory_hostname is just a friendly label used as the dict key in
+# hw_inventory.yaml and agent-config.yaml, so make it something
+# recognizable (asset tag, rack unit...).
+#
+# masters/workers are nested under bmc_hosts so playbook.yaml's
+# `hosts: bmc_hosts` still matches every host for discovery, while
+# generate-agent-config.yaml uses group membership (masters vs workers)
+# to set each host's `role:` in agent-config.yaml.
+#
+# network_members: this host's own discovered {adapter_id, port} mapping
+# (which NIC ports actually build the cluster's one network on THIS
+# server) - matched against output/hw_inventory.yaml's adapter_id/
+# port_number to resolve a real MAC and predicted_linux_ifname.
+# Everything about *how* the network is built - bond vs ethernet, bond
+# name, mode/mtu/LACP options, vlan_id, subnet prefix - is a cluster-wide
+# constant instead, and lives once in vars/cluster.yaml's
+# `network_profile:` block, not repeated per host. network_profile.type
+# applies to EVERY host in the cluster (OpenShift doesn't support mixing
+# bonded and non-bonded nodes), so network_members below must have the
+# matching count for every host: 2+ entries when network_profile.type is
+# 'bond', or exactly 1 when it's 'ethernet'.
+#
+# Any discovered port not listed in network_members is automatically
+# emitted as `type: ethernet, state: down`.
+#
+# Per-member fields:
+#   adapter_id: NIC.Slot.2   # must match hw_inventory.yaml adapter_id
+#   port: 1                  # must match hw_inventory.yaml port_number
+#   name: ens5f0             # OPTIONAL: manual interface-name override,
+#                              used instead of hw_inventory.yaml's
+#                              predicted_linux_ifname for this member.
+#                              Normally not needed against real hardware
+#                              (the prediction is reliable there) - exists
+#                              for cases like sushy-tools labs where
+#                              Redfish has no PCI slot data to predict a
+#                              name from at all (predicted_linux_ifname:
+#                              null), so you supply the real observed
+#                              name yourself. See README's sushy-tools
+#                              section.
+#
+# ip: this host's static IP (always static - rendezvousIP requires a
+# known address, so DHCP isn't supported here).
+#
+# This example cluster uses network_profile.type: bond (see
+# vars/cluster.yaml), so every host below has 2 network_members. If your
+# cluster uses type: ethernet instead, every host needs exactly 1.
+all:
+  children:
+    bmc_hosts:
+      # Group-level defaults, inherited by every host below UNLESS that
+      # host sets its own value - Ansible host_vars always win over
+      # group_vars, so this is all "same for every server unless one
+      # differs" needs: set it once here for the shared case, or override
+      # per host (see server03-bmc below) when a server has its own
+      # iDRAC/iLO/XCC credentials. No separate flag needed - just add or
+      # omit the override on the host that needs it.
+      #
+      # Store real credentials with ansible-vault, e.g.:
+      #   ansible-vault encrypt_string 'RootPassw0rd' --name 'bmc_password'
+      # and paste the resulting !vault block below in place of the plain
+      # string (works the same whether set here or per-host).
+      vars:
+        bmc_username: root
+        bmc_password: "CHANGE_ME"
+        # Almost every BMC ships a self-signed cert. Set true if you've
+        # loaded a real CA cert into your BMCs and want it verified.
+        bmc_validate_certs: false
+      children:
+        masters:
+          hosts:
+            server01-bmc:
+              bmc_ip_hostname: 10.10.10.11
+              network_members:
+                - adapter_id: NIC.Slot.2
+                  port: 1
+                - adapter_id: NIC.Slot.2
+                  port: 2
+              ip: 10.10.10.11
+              # Used only by generate-acm-manifests.yaml: rendered as
+              # bmac.agent-install.openshift.io.node-label.<key>: <value>
+              # annotations on this host's BareMetalHost.
+              node_labels:
+                topology.kubernetes.io/region: basement
+                topology.kubernetes.io/zone: rack-1
+            server02-bmc:
+              bmc_ip_hostname: 10.10.10.12
+              # assumes identical hardware/slot layout to server01-bmc -
+              # adjust to match this host's own hw_inventory.yaml entry
+              # if it differs
+              network_members:
+                - adapter_id: NIC.Slot.2
+                  port: 1
+                - adapter_id: NIC.Slot.2
+                  port: 2
+              ip: 10.10.10.12
+              node_labels:
+                topology.kubernetes.io/region: basement
+                topology.kubernetes.io/zone: rack-1
+            server03-bmc:
+              bmc_ip_hostname: 10.10.10.13
+              # Example per-host credential override: this server has its
+              # own iDRAC username/password instead of the group default.
+              bmc_username: server03_admin
+              bmc_password: "CHANGE_ME_TOO"
+              network_members:
+                - adapter_id: NIC.Slot.2
+                  port: 1
+                - adapter_id: NIC.Slot.2
+                  port: 2
+              ip: 10.10.10.13
+              node_labels:
+                topology.kubernetes.io/region: basement
+                topology.kubernetes.io/zone: rack-1
+        workers:
+          hosts:
+            server04-bmc:
+              bmc_ip_hostname: 10.10.10.14
+              network_members:
+                - adapter_id: NIC.Slot.2
+                  port: 1
+                - adapter_id: NIC.Slot.2
+                  port: 2
+              ip: 10.10.10.14
+              node_labels:
+                topology.kubernetes.io/region: basement
+                topology.kubernetes.io/zone: rack-1

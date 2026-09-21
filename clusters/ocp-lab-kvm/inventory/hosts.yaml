@@ -1,0 +1,111 @@
+---
+# Example inventory for a sushy-tools virtual BMC lab on KVM/libvirt -
+# a self-contained cluster directory (clusters/ocp-lab-kvm/), separate
+# from clusters/ocp-lab/'s real-hardware inventory. Per-host BMC
+# endpoint, credentials, network-build members, static IP, and labels
+# all live here together, keyed by the same inventory hostname - see
+# clusters/ocp-lab/inventory/hosts.yaml's header comment for the full
+# field reference (network_members/ip especially).
+#
+# sushy-tools' libvirt driver exposes ONE Redfish endpoint (usually plain
+# HTTP on port 8000) that serves every VM on the hypervisor. Each VM's
+# System/Chassis resource is identified by its libvirt domain name, e.g.:
+#
+#   GET /redfish/v1/Systems/kvm-node01
+#   GET /redfish/v1/Chassis/kvm-node01
+#
+# not by a numeric collection member like "1". Confirm your domain names
+# with `virsh list --all` on the KVM host before running the playbook -
+# they're case-sensitive and must match exactly.
+#
+# bmc_ip_hostname = the sushy-tools host's IP (same for every VM, since
+# it's one shared Redfish endpoint) - see clusters/ocp-lab/inventory/hosts.yaml
+# for why this repo uses bmc_ip_hostname instead of ansible_host.
+#
+# masters/workers are structured identically to every other cluster's
+# inventory: generate-agent-config.yaml works the same way against a
+# sushy-tools lab as it does against real hardware, since it only reads
+# output/hw_inventory.yaml and inventory group membership - it doesn't
+# care how the discovery playbook talked to the BMC.
+#
+# This example uses 3 masters + 1 worker, but OpenShift supports 1 (SNO),
+# 2, 3, 4, or 5 masters - the masters group just needs at least 1 host,
+# and this inventory structure works the same at any of those sizes.
+#
+# network_members' name: override is REQUIRED here (not just optional,
+# as it usually is against real hardware): sushy-tools' EthernetInterfaces
+# resource has no PCI slot data at all, so hw_inventory.yaml's
+# predicted_linux_ifname comes back null for every port on a sushy-tools
+# host - see README's sushy-tools section for why. The name below (e.g.
+# enp1s0) is something YOU observe from the guest (`ip link` / `nmcli
+# device` inside the booted VM, or `virsh domiflist <domain>` plus your
+# distro's predictable-naming rules) - this code has no way to derive it
+# from Redfish.
+all:
+  children:
+    bmc_hosts:
+      # Group-level defaults, inherited by every host below unless that
+      # host sets its own value (host_vars always win over group_vars) -
+      # see clusters/ocp-lab/inventory/hosts.yaml's comment for the
+      # per-host-credential-override pattern. Here it's one shared
+      # sushy-tools endpoint, so a single set of creds for the whole lab
+      # is the normal case.
+      vars:
+        bmc_username: admin
+        bmc_password: password
+        bmc_use_ssl: false     # sushy-tools default: plain HTTP
+        bmc_port: 8000          # sushy-tools default port
+        bmc_validate_certs: false
+      children:
+        masters:
+          hosts:
+            kvm-node01:
+              bmc_ip_hostname: 192.168.122.1   # the sushy-tools host, same for every VM
+              virtualbmc: true
+              virtual_domain: kvm-node01       # defaults to inventory_hostname if omitted
+              network_members:
+                - adapter_id: eth0
+                  port: 1
+                  name: enp1s0   # <- observed from the guest, NOT predicted by Redfish
+              ip: 192.168.122.101
+              node_labels:
+                topology.kubernetes.io/region: lab
+                topology.kubernetes.io/zone: kvm
+            kvm-node02:
+              bmc_ip_hostname: 192.168.122.1
+              virtualbmc: true
+              virtual_domain: kvm-node02
+              network_members:
+                - adapter_id: eth0
+                  port: 1
+                  name: enp1s0
+              ip: 192.168.122.102
+              node_labels:
+                topology.kubernetes.io/region: lab
+                topology.kubernetes.io/zone: kvm
+            kvm-node03:
+              bmc_ip_hostname: 192.168.122.1
+              virtualbmc: true
+              virtual_domain: kvm-node03
+              network_members:
+                - adapter_id: eth0
+                  port: 1
+                  name: enp1s0
+              ip: 192.168.122.103
+              node_labels:
+                topology.kubernetes.io/region: lab
+                topology.kubernetes.io/zone: kvm
+        workers:
+          hosts:
+            kvm-node04:
+              bmc_ip_hostname: 192.168.122.1
+              virtualbmc: true
+              virtual_domain: kvm-node04
+              network_members:
+                - adapter_id: eth0
+                  port: 1
+                  name: enp1s0
+              ip: 192.168.122.104
+              node_labels:
+                topology.kubernetes.io/region: lab
+                topology.kubernetes.io/zone: kvm

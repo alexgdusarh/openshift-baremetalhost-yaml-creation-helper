@@ -1,0 +1,474 @@
+---
+# generate-acm-manifests.yaml
+#
+# Third-stage playbook (siblings: playbook.yaml discovers hardware,
+# generate-agent-config.yaml renders agent-config.yaml/install-config.yaml
+# for the Agent-based Installer). This one renders the ACM/Assisted-Installer
+# "host-inventory" (InfraEnv) CRs used instead of a direct agent-config.yaml
+# install: one InfraEnv per cluster, and one NMStateConfig + one BMC Secret +
+# one BareMetalHost per node.
+#
+# ZTP/SiteConfig generation is a planned later phase and is NOT what this
+# playbook produces.
+#
+# Consumes the same <cluster_dir>/output/hw_inventory.yaml as
+# generate-agent-config.yaml, plus each host's own network_members/ip
+# from inventory/hosts.yaml (reuses build_nmstate_interfaces/dns_resolver/
+# routes_config from filter_plugins/agent_config_filters.py for identical
+# nmstate logic), plus ACM-specific fields added to vars/cluster.yaml
+# (infraenv_labels, ocp_version, managed_clusterset, managed_cluster_labels)
+# and per-host node_labels added to inventory/hosts.yaml. See
+# filter_plugins/acm_manifest_filters.py for the BareMetalHost-specific
+# logic (bootMACAddress, BMC Redfish URI).
+#
+# The namespace = InfraEnv name = cluster_name for every CR here (a Namespace
+# object is generated as the very first document in the cluster-scoped
+# output file).
+#
+# Node naming: BareMetalHost/NMStateConfig/its Secret are all named
+# "<inventory_hostname>.<cluster_name>.<base_domain>" - inventory_hostname is
+# whatever key you used in inventory/hosts.yaml (masters/workers). If you
+# want short node names like "master-00" instead of e.g. "server01-bmc" in
+# the generated FQDN, rename the inventory_hostname key itself in
+# inventory/hosts.yaml - this playbook doesn't invent a separate short name.
+#
+# Run playbook.yaml first. Then, prefer the wrapper:
+#   ./run-cluster.sh <cluster-name> acm-manifests
+#
+# Or directly:
+#   ansible-playbook generate-acm-manifests.yaml \
+#     -i clusters/<cluster-name>/inventory/hosts.yaml \
+#     -e cluster_dir=clusters/<cluster-name>
+#
+# Output:
+#   <cluster_dir>/output/acm/cluster.yaml       - cluster-scoped CRs
+#   <cluster_dir>/output/acm/hosts/<fqdn>.yaml  - one file per node
+
+- name: Validate inputs before loading any cluster-specific vars files
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+        fail_msg: >-
+          cluster_dir is required, e.g.
+          -e cluster_dir=clusters/ocp-lab - or use
+          ./run-cluster.sh ocp-lab acm-manifests instead.
+
+- name: Render ACM/Assisted-Installer manifests from discovered hardware + network layout
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - "{{ cluster_dir }}/vars/cluster.yaml"
+  vars:
+    hw_inventory_file: "{{ cluster_dir }}/output/hw_inventory.yaml"
+    acm_namespace: "{{ cluster_name }}"
+
+  tasks:
+    - name: Build network_layout from each host's network_members/ip (inventory/hosts.yaml)
+      set_fact:
+        network_layout: >-
+          {{
+            (network_layout | default({})) | combine({
+              item: {
+                'members': hostvars[item]['network_members'] | default([]),
+                'ip': hostvars[item]['ip'] | default(none),
+              }
+            })
+          }}
+      loop: "{{ groups.get('bmc_hosts', []) }}"
+
+    - name: ACM manifest generation requires these cluster.yaml variables
+      assert:
+        that:
+          - ocp_version is defined and ocp_version | length > 0
+          - base_domain is defined and base_domain | length > 0
+          - pull_secret is defined and pull_secret | length > 0
+          - ssh_key is defined and ssh_key | length > 0
+        fail_msg: >-
+          ACM manifest generation needs ocp_version (e.g. '4.20.13'),
+          base_domain, pull_secret, and ssh_key set in
+          {{ cluster_dir }}/vars/cluster.yaml (managed_clusterset defaults
+          to 'default', managed_cluster_labels/infraenv_labels default to
+          {} if omitted; see README).
+
+    - name: Timestamp used for ManagedCluster's initial unreachable taint
+      set_fact:
+        acm_manifest_generated_at: "{{ lookup('pipe', \"date -u +%Y-%m-%dT%H:%M:%SZ\") }}"
+
+    - name: YAML multi-doc separator (a real newline - only YAML double-quoted
+        scalars process '\n' as an escape; a '\n' written inside a Jinja
+        string literal (single- OR double-quoted) stays two literal
+        characters, backslash+n - Jinja2 does not escape-process its own
+        string literals the way Python does)
+      set_fact:
+        yaml_doc_sep: "---\n"
+
+    - name: Build the InfraEnv label map (agentclusterinstalls.extensions.hive.openshift.io/<label>)
+      set_fact:
+        infraenv_label_map: >-
+          {{ infraenv_label_map | default({}) | combine({
+               'agentclusterinstalls.extensions.hive.openshift.io/' ~ item.key: item.value
+          }) }}
+      loop: "{{ (infraenv_labels | default({})) | dict2items }}"
+
+    - name: Load discovered hardware inventory
+      set_fact:
+        hw_inventory: "{{ lookup('file', hw_inventory_file) | from_yaml }}"
+
+    - name: Sanity-check every discovered host has a role assigned in inventory
+      assert:
+        that:
+          - (item in groups.get('masters', [])) or (item in groups.get('workers', []))
+        fail_msg: >-
+          '{{ item }}' is present in hw_inventory.yaml but not in the
+          'masters' or 'workers' inventory groups - add it to
+          {{ cluster_dir }}/inventory/hosts.yaml first.
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    # ------------------------------------------------------------------
+    # Per-host computed facts: FQDN, role, nmstate, boot MAC, BMC address.
+    # ------------------------------------------------------------------
+    - name: Compute per-host facts once
+      set_fact:
+        acm_host_facts: >-
+          {{
+            (acm_host_facts | default({})) | combine({
+              item: {
+                'fqdn': item ~ '.' ~ cluster_name ~ '.' ~ base_domain,
+                'role': 'master' if item in groups.get('masters', []) else 'worker',
+                'nmstate': hw_inventory[item].network_adapters
+                           | build_nmstate_interfaces(network_layout.get(item, {}), network_profile),
+                'top_interfaces': hw_inventory[item].network_adapters
+                           | member_interfaces(network_layout.get(item, {})),
+                'boot_mac': hw_inventory[item].network_adapters
+                           | boot_mac_address(network_layout.get(item, {})),
+                'bmc_uri': hw_inventory[item].vendor
+                           | bmc_redfish_address(
+                               hw_inventory[item].bmc_address,
+                               hostvars[item]['virtualbmc'] | default(false),
+                               hostvars[item]['virtual_domain'] | default(item),
+                               hostvars[item]['bmc_port'] | default(none),
+                               hostvars[item]['redfish_system_id'] | default(none)
+                             ),
+              }
+            })
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Fail if any host is missing a resolvable bootMACAddress
+      assert:
+        that:
+          - acm_host_facts[item].boot_mac is not none
+        fail_msg: >-
+          Could not resolve a bootMACAddress for '{{ item }}' - check its
+          network_members' first entry in {{ cluster_dir }}/inventory/hosts.yaml
+          against hw_inventory.yaml.
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Collect nmstate warnings for review (same data generate-agent-config.yaml surfaces)
+      set_fact:
+        acm_nmstate_warnings: >-
+          {{
+            (acm_nmstate_warnings | default([]))
+            + ([{'host': item, 'network': acm_host_facts[item].nmstate.warnings}]
+               if acm_host_facts[item].nmstate.warnings else [])
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    # ------------------------------------------------------------------
+    # Cluster-scoped manifests
+    # ------------------------------------------------------------------
+    - name: Assemble cluster-scoped manifest list
+      set_fact:
+        cluster_manifests:
+          - apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: "{{ acm_namespace }}"
+
+          - apiVersion: v1
+            kind: Secret
+            metadata:
+              name: "pullsecret-{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+            data:
+              .dockerconfigjson: "{{ pull_secret | b64encode }}"
+            type: kubernetes.io/dockerconfigjson
+
+          - apiVersion: v1
+            kind: Secret
+            metadata:
+              name: "pullsecret-cluster-{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+              labels:
+                agent-install.openshift.io/watch: "true"
+                cluster.open-cluster-management.io/backup: cluster
+            data:
+              .dockerconfigjson: "{{ pull_secret | b64encode }}"
+            type: kubernetes.io/dockerconfigjson
+
+          - apiVersion: agent-install.openshift.io/v1beta1
+            kind: InfraEnv
+            metadata:
+              name: "{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+              labels: "{{ infraenv_label_map }}"
+            spec:
+              agentLabels: "{{ infraenv_label_map }}"
+              pullSecretRef:
+                name: "pullsecret-{{ cluster_name }}"
+              sshAuthorizedKey: "{{ ssh_key }}"
+              nmStateConfigLabelSelector:
+                matchLabels:
+                  infraenvs.agent-install.openshift.io: "{{ cluster_name }}"
+              # Hardcoded: x86_64 only for now. hw_inventory.yaml doesn't
+              # discover CPU architecture - add it there first if/when
+              # s390x or another architecture needs to flow through here.
+              cpuArchitecture: x86_64
+            status:
+              agentLabelSelector:
+                matchLabels: "{{ infraenv_label_map }}"
+
+          - kind: Role
+            apiVersion: rbac.authorization.k8s.io/v1
+            metadata:
+              name: capi-provider-role
+              namespace: "{{ acm_namespace }}"
+            rules:
+              - verbs: ['*']
+                apiGroups: [agent-install.openshift.io]
+                resources: [agents]
+
+          - apiVersion: hive.openshift.io/v1
+            kind: ClusterDeployment
+            metadata:
+              name: "{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+              labels:
+                cluster.open-cluster-management.io/clusterset: "{{ managed_clusterset | default('default') }}"
+                hive.openshift.io/cluster-platform: agent-baremetal
+            spec:
+              platform:
+                agentBareMetal:
+                  agentSelector: {}
+              clusterName: "{{ cluster_name }}"
+              baseDomain: "{{ base_domain }}"
+              pullSecretRef:
+                name: "pullsecret-cluster-{{ cluster_name }}"
+              clusterInstallRef:
+                kind: AgentClusterInstall
+                name: "{{ cluster_name }}"
+                group: extensions.hive.openshift.io
+                version: v1beta1
+              controlPlaneConfig:
+                servingCertificates: {}
+              installed: false
+
+          - apiVersion: extensions.hive.openshift.io/v1beta1
+            kind: AgentClusterInstall
+            metadata:
+              name: "{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+            spec:
+              clusterDeploymentRef:
+                name: "{{ cluster_name }}"
+              holdInstallation: false
+              imageSetRef:
+                # e.g. ocp_version: 4.20.13 -> img4.20.13-multi-appsub
+                name: "img{{ ocp_version }}-multi-appsub"
+              networking:
+                networkType: OVNKubernetes
+                clusterNetwork:
+                  - cidr: "{{ cluster_network_cidr | default('10.128.0.0/14') }}"
+                    hostPrefix: "{{ cluster_network_host_prefix | default(23) }}"
+                serviceNetwork:
+                  - "{{ service_network_cidr | default('172.30.0.0/16') }}"
+                userManagedNetworking: false
+                machineNetwork:
+                  - cidr: "{{ machine_network_cidr }}"
+              platformType: BareMetal
+              provisionRequirements:
+                controlPlaneAgents: "{{ groups.get('masters', []) | length }}"
+                workerAgents: "{{ groups.get('workers', []) | length }}"
+                arbiterAgents: 0
+              sshPublicKey: "{{ ssh_key }}"
+              apiVIP: "{{ api_vips[0] }}"
+              apiVIPs: "{{ api_vips }}"
+              ingressVIP: "{{ ingress_vips[0] }}"
+              ingressVIPs: "{{ ingress_vips }}"
+              manifestsConfigMapRefs: []
+
+          - apiVersion: cluster.open-cluster-management.io/v1
+            kind: ManagedCluster
+            metadata:
+              name: "{{ cluster_name }}"
+              labels: >-
+                {{ {
+                  'cloud': 'BareMetal',
+                  'cluster.open-cluster-management.io/clusterset': managed_clusterset | default('default'),
+                  'feature.open-cluster-management.io/addon-application-manager': 'unreachable',
+                  'feature.open-cluster-management.io/addon-cert-policy-controller': 'unreachable',
+                  'feature.open-cluster-management.io/addon-cluster-proxy': 'unreachable',
+                  'feature.open-cluster-management.io/addon-config-policy-controller': 'unreachable',
+                  'feature.open-cluster-management.io/addon-governance-policy-framework': 'unreachable',
+                  'feature.open-cluster-management.io/addon-managed-serviceaccount': 'unreachable',
+                  'feature.open-cluster-management.io/addon-search-collector': 'unreachable',
+                  'feature.open-cluster-management.io/addon-work-manager': 'unreachable',
+                  'name': cluster_name,
+                  'vendor': 'OpenShift',
+                } | combine(managed_cluster_labels | default({})) }}
+            spec:
+              hubAcceptsClient: true
+              leaseDurationSeconds: 60
+              # NOTE: taints/status are normally written by the ACM hub
+              # controller after first registration, not set at creation -
+              # included here per explicit request, matching the pasted
+              # example's shape (timeAdded set to this generation run's
+              # timestamp rather than a hardcoded date).
+              taints:
+                - effect: NoSelect
+                  key: cluster.open-cluster-management.io/unreachable
+                  timeAdded: "{{ acm_manifest_generated_at }}"
+
+          - apiVersion: agent.open-cluster-management.io/v1
+            kind: KlusterletAddonConfig
+            metadata:
+              name: "{{ cluster_name }}"
+              namespace: "{{ acm_namespace }}"
+            spec:
+              applicationManager:
+                enabled: true
+              certPolicyController:
+                enabled: true
+              clusterLabels:
+                cloud: BareMetal
+                vendor: OpenShift
+              clusterName: "{{ cluster_name }}"
+              clusterNamespace: "{{ acm_namespace }}"
+              policyController:
+                enabled: true
+              searchCollector:
+                enabled: true
+
+    - name: Ensure output directories exist
+      file:
+        path: "{{ cluster_dir }}/output/acm/hosts"
+        state: directory
+        mode: "0755"
+
+    - name: Write cluster-scoped manifests
+      copy:
+        dest: "{{ cluster_dir }}/output/acm/cluster.yaml"
+        content: >-
+          {{ yaml_doc_sep ~ (cluster_manifests
+              | map('to_nice_yaml', indent=2, width=200, sort_keys=False)
+              | join(yaml_doc_sep)) }}
+
+    # ------------------------------------------------------------------
+    # Per-host manifests: NMStateConfig + BMC Secret + BareMetalHost
+    # ------------------------------------------------------------------
+    - name: Build node_label annotation map per host (bmac.agent-install.openshift.io.node-label.<label>)
+      set_fact:
+        acm_host_facts: >-
+          {{
+            acm_host_facts | combine({
+              item: acm_host_facts[item] | combine({
+                'node_label_annotations': dict(
+                  (hostvars[item]['node_labels'] | default({})) | dict2items
+                  | map(attribute='key')
+                  | map('regex_replace', '^(.*)$', 'bmac.agent-install.openshift.io.node-label.\1')
+                  | zip((hostvars[item]['node_labels'] | default({})).values())
+                )
+              })
+            })
+          }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Assemble and write each host's manifest file
+      copy:
+        dest: "{{ cluster_dir }}/output/acm/hosts/{{ acm_host_facts[item].fqdn }}.yaml"
+        content: >-
+          {{ yaml_doc_sep ~ ([
+            {
+              'apiVersion': 'agent-install.openshift.io/v1beta1',
+              'kind': 'NMStateConfig',
+              'metadata': {
+                'name': acm_host_facts[item].fqdn ~ '-network-config',
+                'namespace': acm_namespace,
+                'labels': {
+                  'agent-install.openshift.io/bmh': acm_host_facts[item].fqdn,
+                  'infraenvs.agent-install.openshift.io': cluster_name,
+                },
+              },
+              'spec': {
+                'interfaces': acm_host_facts[item].top_interfaces,
+                'config': {
+                  'interfaces': acm_host_facts[item].nmstate.interfaces,
+                  'dns-resolver': dns | dns_resolver,
+                  'routes': gateway | routes_config(acm_host_facts[item].nmstate.primary_interface,
+                                                     route_table_id | default(254)),
+                },
+              },
+            },
+            {
+              'apiVersion': 'v1',
+              'kind': 'Secret',
+              'metadata': {
+                'name': acm_host_facts[item].fqdn ~ '-bmc-secret',
+                'namespace': acm_namespace,
+              },
+              'type': 'Opaque',
+              'data': {
+                'username': hostvars[item]['bmc_username'] | b64encode,
+                'password': hostvars[item]['bmc_password'] | b64encode,
+              },
+            },
+            {
+              'apiVersion': 'metal3.io/v1alpha1',
+              'kind': 'BareMetalHost',
+              'metadata': {
+                'name': acm_host_facts[item].fqdn,
+                'namespace': acm_namespace,
+                'annotations': {
+                  'bmac.agent-install.openshift.io/hostname': acm_host_facts[item].fqdn,
+                  'bmac.agent-install.openshift.io/cluster-reference': acm_namespace ~ '/' ~ cluster_name,
+                  'bmac.agent-install.openshift.io/role': acm_host_facts[item].role,
+                  'agent.agent-install.openshift.io/role': acm_host_facts[item].role,
+                  'inspect.metal3.io': 'disabled',
+                } | combine(acm_host_facts[item].node_label_annotations),
+                'labels': {
+                  'cluster.open-cluster-management.io/backup': 'true',
+                  'infraenvs.agent-install.openshift.io': cluster_name,
+                },
+              },
+              'spec': {
+                'automatedCleaningMode': 'disabled',
+                'bmc': {
+                  'address': acm_host_facts[item].bmc_uri,
+                  'credentialsName': acm_host_facts[item].fqdn ~ '-bmc-secret',
+                  'disableCertificateVerification': not (hostvars[item]['bmc_validate_certs'] | default(false)),
+                },
+                'bootMACAddress': acm_host_facts[item].boot_mac,
+                'customDeploy': {'method': 'start_assisted_install'},
+                'online': true,
+              },
+            },
+          ] | map('to_nice_yaml', indent=2, width=200, sort_keys=False) | join(yaml_doc_sep)) }}
+      loop: "{{ hw_inventory.keys() | list }}"
+
+    - name: Show nmstate warnings that need manual review, if any
+      debug:
+        var: acm_nmstate_warnings
+      when: acm_nmstate_warnings | default([]) | length > 0
+
+    - name: Done
+      debug:
+        msg:
+          - "Wrote {{ cluster_dir }}/output/acm/cluster.yaml"
+          - "Wrote {{ cluster_dir }}/output/acm/hosts/ ({{ hw_inventory.keys() | list | length }} host(s))"

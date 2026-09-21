@@ -1,0 +1,133 @@
+---
+# deploy-verify-webhook.yaml
+#
+# Installs verify_webhook.py as a systemd service on this box (the same
+# one already running Apache for the ISO library - see
+# manage-verify-iso.yaml), and opens its port in the firewall. Run once;
+# safe to re-run (every task here is idempotent) after pulling in
+# changes to webhook/verify_webhook.py.
+#
+# Deliberately targets localhost/connection:local, same as every other
+# playbook in this repo - run it ON the box you want the webhook
+# running on, the same way you'd run manage-verify-iso.yaml there.
+#
+# Usage:
+#   ansible-playbook deploy-verify-webhook.yaml
+#   ansible-playbook deploy-verify-webhook.yaml -e verify_webhook_port=9090   # override the default
+
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  become: true
+  vars:
+    verify_webhook_install_dir: /opt/redfish-hw-inventory
+    verify_webhook_port: 8090
+    verify_webhook_user: verify-webhook
+
+  tasks:
+    - name: Ensure the dedicated service user exists
+      user:
+        name: "{{ verify_webhook_user }}"
+        system: true
+        shell: /sbin/nologin
+        create_home: false
+
+    - name: Ensure PyYAML is available for that interpreter
+      pip:
+        name: pyyaml
+        executable: pip3
+
+    - name: Ensure the install directory exists
+      file:
+        path: "{{ verify_webhook_install_dir }}/webhook"
+        state: directory
+        owner: "{{ verify_webhook_user }}"
+        group: "{{ verify_webhook_user }}"
+        mode: "0750"
+
+    - name: Copy the webhook itself
+      copy:
+        src: webhook/verify_webhook.py
+        dest: "{{ verify_webhook_install_dir }}/webhook/verify_webhook.py"
+        owner: "{{ verify_webhook_user }}"
+        group: "{{ verify_webhook_user }}"
+        mode: "0750"
+      notify: restart verify-webhook
+
+    - name: Render and install the systemd unit
+      template:
+        src: webhook/verify-webhook.service.j2
+        dest: /etc/systemd/system/verify-webhook.service
+        mode: "0644"
+      notify: restart verify-webhook
+
+    - name: Reload systemd and enable/start the service
+      systemd:
+        name: verify-webhook
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    # --------------------------------------------------------------------
+    # Firewall: open verify_webhook_port so BMCs/booted hosts can actually
+    # reach this. Detects firewalld first rather than assuming it's the
+    # active backend - if it isn't (iptables/nftables/ufw directly, or
+    # this box sits behind a cloud security group instead), this playbook
+    # tells you plainly rather than either failing outright or silently
+    # doing nothing you'd notice.
+    # --------------------------------------------------------------------
+
+    - name: Check whether firewalld is the active firewall backend here
+      command: systemctl is-active firewalld
+      register: firewalld_active
+      changed_when: false
+      failed_when: false
+
+    - name: Open the webhook's port in firewalld
+      when: firewalld_active.stdout == 'active'
+      block:
+        - name: Check whether the port is already open (permanent zone)
+          command: "firewall-cmd --permanent --query-port={{ verify_webhook_port }}/tcp"
+          register: port_check
+          changed_when: false
+          failed_when: false  # query-port exits 1 (not 0) when the port is NOT open - that's a normal result, not an error
+
+        - name: Add the port (only if not already present)
+          command: "firewall-cmd --permanent --add-port={{ verify_webhook_port }}/tcp"
+          when: port_check.rc != 0
+          register: port_added
+
+        - name: Reload firewalld to apply the new rule
+          command: firewall-cmd --reload
+          when: port_added is changed
+
+    - name: firewalld isn't the active backend here - open the port yourself
+      debug:
+        msg: >-
+          firewalld is not active on this box (checked via `systemctl
+          is-active firewalld`), so this playbook did NOT touch any
+          firewall rules. Open TCP port {{ verify_webhook_port }}
+          yourself with whatever this box actually uses (iptables/
+          nftables/ufw directly, or a cloud security group) - the
+          webhook is listening but unreachable from your BMCs'
+          management network until that's done.
+      when: firewalld_active.stdout != 'active'
+
+    - name: Confirm the service is actually listening
+      wait_for:
+        port: "{{ verify_webhook_port }}"
+        host: 127.0.0.1
+        timeout: 10
+
+    - name: Done
+      debug:
+        msg:
+          - "verify-webhook is running and listening on :{{ verify_webhook_port }}."
+          - "Use webhook_url=http://<this-host>:{{ verify_webhook_port }} when building verify.iso."
+
+  handlers:
+    - name: restart verify-webhook
+      systemd:
+        name: verify-webhook
+        state: restarted
+        daemon_reload: true

@@ -1,0 +1,434 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: openshift
+rendezvousIP: 192.168.0.22
+additionalNTPSources:
+- pool.ntp.org
+hosts:
+- hostname: master-00
+  rootDeviceHints:
+    wwn: '0x50014ee0adfe2945'
+  role: master
+  interfaces:
+  - name: eno1
+    macAddress: 6C:3C:8C:65:52:19
+  - name: eno2
+    macAddress: 6C:3C:8C:65:52:1A
+  networkConfig:
+    interfaces:
+    - name: eno1
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:52:19
+      permanent-mac-address: 6C:3C:8C:65:52:19
+    - name: eno2
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:52:19
+      permanent-mac-address: 6C:3C:8C:65:52:1A
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:52:19
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno1
+        - eno2
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 6C:3C:8C:65:52:19
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.22
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254
+- hostname: master-01
+  rootDeviceHints:
+    wwn: '0x50014ee058accf48'
+  role: master
+  interfaces:
+  - name: eno1
+    macAddress: 6C:3C:8C:66:60:35
+  - name: eno2
+    macAddress: 6C:3C:8C:66:60:36
+  networkConfig:
+    interfaces:
+    - name: eno1
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:66:60:35
+      permanent-mac-address: 6C:3C:8C:66:60:35
+    - name: eno2
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:66:60:35
+      permanent-mac-address: 6C:3C:8C:66:60:36
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:66:60:35
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno1
+        - eno2
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 6C:3C:8C:66:60:35
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.23
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254
+- hostname: master-02
+  rootDeviceHints:
+    wwn: '0x50014ee0032753c0'
+  role: master
+  interfaces:
+  - name: eno1
+    macAddress: 6C:3C:8C:65:06:C9
+  - name: eno2
+    macAddress: 6C:3C:8C:65:06:CA
+  networkConfig:
+    interfaces:
+    - name: eno1
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:06:C9
+      permanent-mac-address: 6C:3C:8C:65:06:C9
+    - name: eno2
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:06:C9
+      permanent-mac-address: 6C:3C:8C:65:06:CA
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 6C:3C:8C:65:06:C9
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno1
+        - eno2
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 6C:3C:8C:65:06:C9
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.24
+          prefix-length: 24
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254
+- hostname: worker-00
+  rootDeviceHints:
+    wwn: '0x5000c500d9d7f925'
+  role: worker
+  interfaces:
+  - name: eno1
+    macAddress: 78:AC:44:28:98:22
+  - name: eno2
+    macAddress: 78:AC:44:28:98:24
+  - name: eno3
+    macAddress: 78:AC:44:28:98:42
+  - name: eno4
+    macAddress: 78:AC:44:28:98:43
+  networkConfig:
+    interfaces:
+    - name: eno4
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:98:43
+      permanent-mac-address: 78:AC:44:28:98:43
+    - name: eno3
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:98:43
+      permanent-mac-address: 78:AC:44:28:98:42
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:98:43
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno4
+        - eno3
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 78:AC:44:28:98:43
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.25
+          prefix-length: 24
+    - name: eno1
+      type: ethernet
+      state: down
+    - name: eno2
+      type: ethernet
+      state: down
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254
+- hostname: worker-01
+  rootDeviceHints:
+    wwn: '0x5000c500d9d7d965'
+  role: worker
+  interfaces:
+  - name: eno1
+    macAddress: 78:AC:44:28:C2:20
+  - name: eno2
+    macAddress: 78:AC:44:28:C2:22
+  - name: eno3
+    macAddress: 78:AC:44:28:C2:40
+  - name: eno4
+    macAddress: 78:AC:44:28:C2:41
+  networkConfig:
+    interfaces:
+    - name: eno4
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:C2:41
+      permanent-mac-address: 78:AC:44:28:C2:41
+    - name: eno3
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:C2:41
+      permanent-mac-address: 78:AC:44:28:C2:40
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:28:C2:41
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno4
+        - eno3
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 78:AC:44:28:C2:41
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.26
+          prefix-length: 24
+    - name: eno1
+      type: ethernet
+      state: down
+    - name: eno2
+      type: ethernet
+      state: down
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254
+- hostname: worker-02
+  rootDeviceHints:
+    wwn: '0x5000c500d9d41901'
+  role: worker
+  interfaces:
+  - name: eno1
+    macAddress: 78:AC:44:22:F8:88
+  - name: eno2
+    macAddress: 78:AC:44:22:F8:8A
+  - name: eno3
+    macAddress: 78:AC:44:22:F8:A8
+  - name: eno4
+    macAddress: 78:AC:44:22:F8:A9
+  networkConfig:
+    interfaces:
+    - name: eno4
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:22:F8:A9
+      permanent-mac-address: 78:AC:44:22:F8:A9
+    - name: eno3
+      type: ethernet
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:22:F8:A9
+      permanent-mac-address: 78:AC:44:22:F8:A8
+    - name: bond0
+      type: bond
+      state: up
+      mtu: 1500
+      mac-address: 78:AC:44:22:F8:A9
+      link-aggregation:
+        mode: 802.3ad
+        port:
+        - eno4
+        - eno3
+        options:
+          lacp_rate: fast
+          lp_interval: 1
+          miimon: 100
+          xmit_hash_policy: layer3+4
+          lacp_active: true
+      ipv4:
+        enabled: false
+    - name: bond0.200
+      type: vlan
+      state: up
+      mac-address: 78:AC:44:22:F8:A9
+      vlan:
+        base-iface: bond0
+        id: 200
+      ipv4:
+        enabled: true
+        dhcp: false
+        address:
+        - ip: 192.168.0.27
+          prefix-length: 24
+    - name: eno1
+      type: ethernet
+      state: down
+    - name: eno2
+      type: ethernet
+      state: down
+    dns-resolver:
+      config:
+        server:
+        - 192.168.0.254
+        search:
+        - openshift.training
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 192.168.0.254
+        next-hop-interface: bond0.200
+        table-id: 254

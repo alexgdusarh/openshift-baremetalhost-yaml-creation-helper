@@ -1,0 +1,62 @@
+---
+# Cluster-level values for the ocp-lab-kvm sushy-tools/KVM lab. Same
+# structure and rules as clusters/ocp-lab/vars/cluster.yaml - see that
+# file's comments for the full explanation of each field.
+#
+# This example uses network_profile.type: ethernet rather than bond,
+# since sushy-tools libvirt VMs typically have just one virtual NIC
+# (EthernetInterfaces gives one MAC per virtual NIC, no PCI slot/bonding
+# concept - see README's sushy-tools section). If your lab VMs have
+# multiple <interface> devices in their libvirt XML, you can switch this
+# to type: bond the same way clusters/ocp-lab does.
+cluster_name: ocp-lab-kvm
+
+rendezvous_ip: 192.168.122.101
+
+additional_ntp_sources:
+  - pool.ntp.org
+
+gateway: 192.168.122.1
+route_table_id: 254
+
+dns:
+  server:
+    - 192.168.122.1
+  search:
+    - kvm.lab
+
+network_profile:
+  type: ethernet
+  mtu: 1500
+  vlan_id: null
+  prefix_length: 24
+  # link_aggregation is ignored entirely when type: ethernet - no bond,
+  # nothing to configure here.
+
+# --- install-config.yaml -----------------------------------------------
+# See clusters/ocp-lab/vars/cluster.yaml's comments for the full
+# explanation of each field below.
+base_domain: kvm.lab
+
+machine_network_cidr: 192.168.122.0/24
+
+api_vips:
+  - 192.168.122.10
+
+ingress_vips:
+  - 192.168.122.9
+
+load_balancer_type: OpenShiftManagedDefault
+
+pull_secret: 'CHANGE_ME - paste your pull secret JSON here as a single-quoted string'
+
+ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key"
+
+# --- ACM / Assisted-Installer manifests (generate-acm-manifests.yaml) --
+# See clusters/ocp-lab/vars/cluster.yaml for the full comments on these.
+ocp_version: "4.20.13"
+managed_cluster_labels:
+  dc: basement
+managed_clusterset: default
+infraenv_labels:
+  location: basement
