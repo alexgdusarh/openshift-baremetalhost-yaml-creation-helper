@@ -2,9 +2,25 @@
 # manage-verify-iso.yaml
 #
 # Builds (or re-uses, if already built) ONE verify.iso per RHCOS
-# version+arch, served from this box's existing Apache instance for
-# Redfish virtual media to mount - no PXE/TFTP infrastructure needed,
-# since virtual media boot works over plain HTTP from any web server.
+# version+arch, and writes it into a plain, standard directory for
+# Redfish virtual media to mount - by default, straight into Apache's
+# usual docroot (/var/www/html/coreos-isos), so it's served at
+# http://<host>/coreos-isos/<version>/<arch>/verify.iso by whatever web
+# server you already have running there. This playbook does NOT
+# install, configure, or own any web server - it only writes files into
+# a directory you point it at, world-readable, so it doesn't matter
+# which user actually serves them (Apache, an internal tool, anything).
+# No PXE/TFTP needed either way - virtual media boots over plain HTTP
+# from any web server.
+#
+# At real fleet scale (6-100+ servers pulling this ~1.3GB ISO
+# concurrently during an install run), a mature web server (Apache's
+# worker/event MPM, native Range/206 support) is the right tool for
+# that load - this playbook assumes you have one already, since every
+# other part of this toolkit already does too (the same box has been
+# serving agent-config.yaml-adjacent artifacts all along). For quick
+# lab/test verification without a web server handy, see
+# verify-boot/README notes on deploy-verify-webhook.yaml.
 #
 # The Ignition embedded into this ISO is deliberately generic (no
 # hostname, no per-host anything - see verify-boot/verify.bu's header
@@ -19,18 +35,21 @@
 # binary if not already present locally.
 #
 # Usage:
-#   ansible-playbook manage-verify-iso.yaml \
-#     -e rhcos_iso_url='https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/4.20/latest/rhcos-4.20.0-x86_64-live.x86_64.iso' \
+#   ansible-playbook manage-verify-iso.yaml --ask-become-pass \
+#     -e rhcos_iso_url='https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.20/latest/rhcos-live-iso.x86_64.iso' \
 #     -e rhcos_version=4.20 \
 #     -e webhook_url='http://192.168.0.10:8090'
 #
 # Output: <iso_web_root>/<rhcos_version>/<arch>/verify.iso
 # (iso_web_root defaults to /var/www/html/coreos-isos - override with
-# -e iso_web_root=... if Apache's docroot differs)
+# -e iso_web_root=... to match wherever your web server actually serves
+# static files from, if that's not it)
 
 - hosts: localhost
   gather_facts: false
   connection: local
+  become: true  # writing under /var/www/html (or wherever iso_web_root
+                # points) normally needs root - see --ask-become-pass above
   vars:
     iso_web_root: /var/www/html/coreos-isos
     arch: x86_64
@@ -131,16 +150,73 @@
             dest: "{{ build_dir }}/verify.ign"
             mode: "0644"
 
+        - name: Persist the transpiled Ignition config alongside the ISO (not just in transient /tmp)
+          copy:
+            content: "{{ butane_out.stdout }}"
+            dest: "{{ iso_out_dir }}/verify.ign"
+            mode: "0644"
+          # mount-verify-media.yaml reuses THIS file (not build_dir's copy,
+          # which is transient /tmp and never recreated on a run where
+          # this playbook skips rebuilding because verify.iso already
+          # existed) to build per-host ISOs with static networking - see
+          # its own comments for why it always starts fresh from
+          # base-live.iso + this file, in one combined 'iso customize'
+          # call, rather than layering onto verify.iso.
+
+        - name: Remove any stale verify.iso before rebuilding (coreos-installer's -o
+            fails with EEXIST if the destination file already exists - confirmed on
+            real hardware when re-running with force_rebuild=true)
+          file:
+            path: "{{ iso_out_dir }}/verify.iso"
+            state: absent
+
         - name: Embed the Ignition config into a fresh copy of the base ISO (via coreos-installer container)
           command:
             cmd: >-
               podman run --rm --pull=missing
-              -v {{ iso_out_dir }}:/iso:z
-              -v {{ build_dir }}:/build:z
+              --security-opt label=disable
+              -v {{ iso_out_dir }}:/iso
+              -v {{ build_dir }}:/build
               quay.io/coreos/coreos-installer:release
-              iso ignition embed -f -i /build/verify.ign
+              iso customize --force --live-ignition /build/verify.ign
               -o /iso/verify.iso /iso/base-live.iso
           changed_when: true
+          # 'iso customize' specifically, NOT 'iso ignition embed' - per
+          # coreos-installer's own docs, customize is the single
+          # authoritative "configure everything about this ISO in one
+          # pass" command, and mount-verify-media.yaml later does a
+          # SEPARATE customize invocation (adding --network-keyfile) for
+          # hosts that need static networking. Layering a second
+          # customize call - or worse, a different embed-family command
+          # like 'iso ignition embed' - on top of a customize-produced
+          # ISO is not a documented-safe composition and was confirmed
+          # to actually clobber the Ignition config entirely on real
+          # hardware ("Ignition: no config provided by user" at boot,
+          # despite this step having succeeded and produced a
+          # seemingly-valid ISO). Using 'customize' consistently here
+          # AND in mount-verify-media.yaml (which always rebuilds fresh
+          # from base-live.iso rather than layering onto this file) -
+          # this file and mount-verify-media.yaml's per-host ISOs never
+          # get chained through two different embed mechanisms.
+          # Deliberately NOT ':z'/':Z' on the volume mounts above - those
+          # flags relabel the ENTIRE bind-mounted host directory for
+          # shared container access (container_file_t), including files
+          # already sitting there before this container ever ran
+          # (confirmed on real hardware: base-live.iso, downloaded
+          # earlier via plain get_url with no container involved at all,
+          # ended up relabeled too - not just the newly-written
+          # verify.iso), and persists that as a SELinux "customization"
+          # that a later plain `restorecon` then refuses to revert
+          # ("not reset as customized by admin"). --security-opt
+          # label=disable instead skips SELinux confinement for just
+          # this one container run, so host files keep whatever label
+          # they'd naturally get (httpd_sys_content_t, inherited
+          # automatically under /var/www/html) rather than being
+          # overwritten in the first place - nothing to fight after the
+          # fact. The restorecon step below stays as a light defensive
+          # safety net (e.g. for whatever labeled the output directory
+          # itself before this playbook's own 'file' task ran), not the
+          # primary fix.
 
         - name: Verify the embed actually produced a non-empty ISO
           stat:
@@ -148,10 +224,103 @@
           register: final_iso
           failed_when: not final_iso.stat.exists or final_iso.stat.size < 100000000  # sanity floor: 100MB
 
+        - name: Ensure the ISO is world-readable (podman ran it as root via become -
+            doesn't matter which user your web server runs as, this covers any of them)
+          file:
+            path: "{{ iso_out_dir }}/verify.iso"
+            mode: "0644"
+
+        # --------------------------------------------------------------
+        # SELinux: Unix permissions (0644 above) are NOT sufficient on
+        # their own here - podman writes into this bind-mounted directory
+        # from inside a container, which commonly labels the resulting
+        # file container_file_t rather than inheriting httpd_sys_content_t
+        # from the surrounding /var/www/html tree, even though ownership
+        # and mode are otherwise completely correct. Apache's httpd_selinux
+        # policy then blocks reading it outright - a 403 straight from
+        # Apache itself, not a permissions error, even on a world-readable
+        # root-owned file (confirmed against this exact symptom on real
+        # RHEL/Apache). restorecon resets it to whatever the policy
+        # actually defines for this path (whatever that is for your
+        # docroot - not a hardcoded type), so this works whether
+        # iso_web_root is Apache's default docroot or a custom Alias
+        # you've already labeled yourself. Detects whether SELinux
+        # tooling is present at all first, same pattern as
+        # deploy-verify-webhook.yaml's port-labeling step, and skips
+        # cleanly (not a failure) when it isn't - restorecon is harmless
+        # to run even in Permissive mode, so this doesn't gate on
+        # Enforcing specifically the way that other step does.
+        # --------------------------------------------------------------
+
+        - name: Check whether SELinux tooling is present on this box
+          command: getenforce
+          register: selinux_present
+          changed_when: false
+          failed_when: false
+
+        - name: Reset SELinux context on the whole ISO tree to match policy
+          command: "restorecon -RF {{ iso_web_root }}"
+          when: selinux_present.rc == 0
+          changed_when: true
+
+        # --------------------------------------------------------------
+        # Self-check: confirm the ISO is ACTUALLY servable over HTTP from
+        # this box, right now - rather than assuming a fresh file with
+        # correct Unix permissions means it's reachable. This is exactly
+        # the check that would have caught the SELinux/container_file_t
+        # mislabeling automatically, at build time, instead of only
+        # surfacing as a confusing iDRAC-side "can't locate the ISO"
+        # error much later during mount-verify-media.yaml.
+        #
+        # IMPORTANT SCOPE NOTE: this only proves the ISO is reachable
+        # from THIS box (the Ansible control node) over its own network
+        # path to itself. It does NOT prove the BMC's own management
+        # network can reach it too - those can be, and in practice often
+        # are, two completely different network paths (confirmed
+        # directly: a working curl from the Ansible host coexisted with
+        # the BMC's own traceroute showing a firewall rejecting exactly
+        # that same request from its management subnet). This check
+        # exists to catch build-time problems (permissions, SELinux,
+        # Apache down) early - it is NOT a substitute for verifying
+        # reachability from the BMC's own network before mounting, which
+        # mount-verify-media.yaml's own pre-flight check (see that file)
+        # only partially covers for the same reason.
+        # --------------------------------------------------------------
+
+        - name: Self-check - confirm the ISO is actually servable over HTTP right now
+          uri:
+            url: "http://127.0.0.1/coreos-isos/{{ rhcos_version }}/{{ arch }}/verify.iso"
+            method: HEAD
+            status_code: [200]
+          register: iso_http_check
+          failed_when: false
+
+        - name: Fail clearly if the ISO isn't actually servable, with a likely cause
+          assert:
+            that:
+              - iso_http_check.status == 200
+            fail_msg: >-
+              {{ iso_out_dir }}/verify.iso was built successfully, but
+              http://127.0.0.1/coreos-isos/{{ rhcos_version }}/{{ arch }}/verify.iso
+              returned status {{ iso_http_check.status | default('(no response)') }}
+              instead of 200. Common causes: (a) this box's own Apache
+              docroot isn't actually /var/www/html, or coreos-isos/ isn't
+              under whatever it is - check iso_web_root against your real
+              vhost config; (b) SELinux - a 403 here specifically usually
+              means the ISO's context needs 'sudo restorecon -RvF
+              {{ iso_web_root }}' (the step above should have already
+              handled this - if you're still seeing it, check
+              `getenforce` and `ls -Z` directly); (c) Apache genuinely
+              isn't running or isn't listening on port 80 on this box.
+              Whatever this points to, fix it here BEFORE running
+              mount-verify-media.yaml - a BMC will report a much vaguer
+              error for the same underlying problem.
+
         - name: Done
           debug:
             msg:
               - "Built {{ iso_out_dir }}/verify.iso ({{ (final_iso.stat.size / 10**9) | round(2) }} GB)"
-              - "Point mount-verify-media.yaml's verify_iso_url at this file's Apache URL,"
-              - "e.g. http://<this-host>/coreos-isos/{{ rhcos_version }}/{{ arch }}/verify.iso"
-              - "(assuming {{ iso_web_root }} is under Apache's DocumentRoot)"
+              - "Confirmed servable from this box at:"
+              - "http://127.0.0.1/coreos-isos/{{ rhcos_version }}/{{ arch }}/verify.iso"
+              - "Point mount-verify-media.yaml at this rhcos_version+arch (it derives"
+              - "the per-host URL itself) - see that file's header comment."

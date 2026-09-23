@@ -300,6 +300,96 @@ def port_number_from_id(port_id):
 
 
 # --------------------------------------------------------------------------
+# EthernetInterfaces cross-check/fallback
+# --------------------------------------------------------------------------
+# No single Redfish network resource is reliable across every vendor and
+# firmware generation - confirmed against real-world evidence, not just
+# this toolkit's own testing: an open Sushy bug (Dell hardware, some
+# EthernetInterfaces entries split MAC and link/health data across two
+# separate Id's, causing Sushy's own logic to skip them entirely) and a
+# documented NVIDIA nv-redfish fix (Lenovo XCC: EthernetInterfaces can be
+# present but empty, with the real MAC only reachable via
+# NetworkAdapters/.../Ports, in a vendor OEM field) both show real
+# clients hitting gaps in BOTH directions, not just one. Ironic/Sushy's
+# own primary MAC-discovery path is EthernetInterfaces (the older,
+# simpler, far more consistently-implemented DMTF resource - present
+# since Redfish 1.0, unlike the newer/richer NetworkAdapters tree this
+# module otherwise prefers for its PCI-slot/multi-port modeling).
+#
+# Confirmed directly on real Dell iDRAC8 hardware (PowerEdge R630): the
+# NetworkAdapters/Ports schema's AssociatedMACAddresses came back as the
+# literal placeholder '00:00:00:00:00:00' for every port on one adapter,
+# and PhysicalPortNumber came back as a raw '@odata.id' reference object
+# instead of an integer - both symptoms of the same underlying gap:
+# this specific adapter/firmware's implementation of the newer schema is
+# broken, even though the adapter itself is real and working (confirmed
+# by cross-referencing against EthernetInterfaces, which had the correct
+# data for the same physical ports).
+#
+# So: cross-reference both. When NetworkAdapters/Ports data for a port
+# looks bogus (placeholder/missing MAC), prefer a matching
+# EthernetInterfaces entry if one has valid data instead - never the
+# other way around (NetworkAdapters/Ports data that looks VALID is left
+# alone, since it also carries PCI-slot/adapter-grouping data
+# EthernetInterfaces doesn't have at all).
+
+_PLACEHOLDER_MACS = frozenset(['00:00:00:00:00:00'])
+
+
+def is_placeholder_mac(mac):
+    """True for None/empty, or a well-known placeholder value real
+    hardware never legitimately reports (confirmed directly: Dell
+    iDRAC8 returning literal all-zeros for a port whose real MAC is
+    genuinely available elsewhere, via EthernetInterfaces)."""
+    if not mac:
+        return True
+    return mac.strip().lower() in _PLACEHOLDER_MACS
+
+
+def base_port_id_from_interface_id(iface_id):
+    """Given an EthernetInterfaces Id like 'NIC.Integrated.1-1-1'
+    (Dell's <adapter-fqdd>-<port>-<function> convention), strip the
+    trailing function segment to get the base port id
+    'NIC.Integrated.1-1' - matching the Id format the
+    NetworkAdapters/Ports resource uses for that SAME physical port,
+    so the two can be cross-referenced by Id. Returns None if the Id
+    doesn't have that shape (at least 3 dash-separated segments, last
+    two numeric) - non-Dell EthernetInterfaces Id's won't match this
+    convention and simply won't cross-reference, which is fine: the
+    fallback then just doesn't fire for that port rather than matching
+    incorrectly."""
+    if not iface_id:
+        return None
+    parts = iface_id.split('-')
+    if len(parts) >= 3 and parts[-1].isdigit() and parts[-2].isdigit():
+        return '-'.join(parts[:-1])
+    return None
+
+
+def fetch_ethernet_interfaces_lookup(module, base, system):
+    """Fetches Systems/{id}/EthernetInterfaces (the standard link is
+    system['EthernetInterfaces']['@odata.id'] - present per spec on any
+    System resource that has network interfaces at all) and returns
+    {base_port_id: mac} for cross-referencing against NetworkAdapters/
+    Ports data - see this section's module-level comment for why.
+    Returns {} (not None) if the link is absent or the fetch fails, so
+    callers can use it unconditionally without a None-check."""
+    ref = (system or {}).get('EthernetInterfaces', {}).get('@odata.id')
+    if not ref:
+        return {}
+    col = rf_get(module, base, ref)
+    lookup = {}
+    for iface in collection_members(module, base, col):
+        base_id = base_port_id_from_interface_id(iface.get('Id'))
+        if not base_id:
+            continue
+        mac = iface.get('MACAddress') or iface.get('PermanentMACAddress')
+        if mac and not is_placeholder_mac(mac):
+            lookup[base_id] = mac
+    return lookup
+
+
+# --------------------------------------------------------------------------
 # Network discovery
 # --------------------------------------------------------------------------
 
@@ -331,6 +421,7 @@ def discover_network_ethernetinterfaces(module, base, virtual_domain):
             'ports': [{
                 'port_number': 1,
                 'mac_address': mac,
+                'mac_source': None,
                 'link_status': 'LinkUp' if iface.get('LinkStatus') == 'LinkUp' else iface.get('LinkStatus'),
                 'predicted_linux_ifname': None,
             }],
@@ -344,7 +435,7 @@ def discover_network_ethernetinterfaces(module, base, virtual_domain):
     return adapters_out
 
 
-def discover_network(module, base, virtual_domain=None, devlink_port_naming=False):
+def discover_network(module, base, system=None, virtual_domain=None, devlink_port_naming=False):
     """virtual_domain: when set (sushy-tools/KVM lab mode), skip the
     Chassis/NetworkAdapters path entirely and query EthernetInterfaces
     instead - see discover_network_ethernetinterfaces() docstring for why.
@@ -352,11 +443,21 @@ def discover_network(module, base, virtual_domain=None, devlink_port_naming=Fals
     unrelated to any individual VM (not keyed by domain name at all), and
     it doesn't expose NetworkAdapters regardless.
 
+    system: the already-fetched System resource (real hardware only,
+    unused/not needed in the virtual_domain path above) - used to fetch
+    Systems/{id}/EthernetInterfaces as a cross-check/fallback source for
+    ports whose NetworkAdapters/Ports data looks bogus. See this file's
+    "EthernetInterfaces cross-check/fallback" section for why that's
+    needed at all - no single resource is reliable across every vendor
+    and firmware generation, confirmed on real Dell iDRAC8 hardware.
+
     devlink_port_naming: opt-in (see the module's DOCUMENTATION for
     devlink_port_naming) - only applied on top of the manufacturer check
     (likely_has_devlink_port_name), never on its own."""
     if virtual_domain:
         return discover_network_ethernetinterfaces(module, base, virtual_domain)
+
+    eth_ifaces_lookup = fetch_ethernet_interfaces_lookup(module, base, system)
 
     adapters_out = []
     onboard_counter = [0]  # mutable counter shared across adapters/ports
@@ -387,30 +488,57 @@ def discover_network(module, base, virtual_domain=None, devlink_port_naming=Fals
                 port_col = rf_get(module, base, adapter['Ports']['@odata.id'])
                 for p in collection_members(module, base, port_col):
                     macs = p.get('Ethernet', {}).get('AssociatedMACAddresses', [])
+                    mac_address = macs[0] if macs else None
                     # PhysicalPortNumber is standard DMTF Redfish, but some
                     # BMCs (notably Dell iDRAC9) leave it null even on this
                     # schema - fall back to parsing it from the port's own
                     # Id/FQDD (see port_number_from_id()'s docstring); the
                     # final positional fallback below covers anything that
                     # still comes back None (e.g. a non-Dell BMC with the
-                    # same gap and a differently-shaped Id).
+                    # same gap and a differently-shaped Id). Also confirmed
+                    # on real Dell iDRAC8 hardware: PhysicalPortNumber can
+                    # come back as a raw '@odata.id' REFERENCE OBJECT
+                    # instead of an integer on some firmware - never trust
+                    # its type, only its presence.
                     port_number = p.get('PhysicalPortNumber')
-                    if port_number is None:
+                    if not isinstance(port_number, int):
                         port_number = port_number_from_id(p.get('Id'))
+                    mac_source = None
+                    if is_placeholder_mac(mac_address):
+                        fallback_mac = eth_ifaces_lookup.get(base_port_id_from_interface_id(p.get('Id')) or p.get('Id'))
+                        if fallback_mac:
+                            mac_address = fallback_mac
+                            mac_source = ('EthernetInterfaces (NetworkAdapters/Ports reported a '
+                                          'placeholder/missing MAC for this port)')
+                        else:
+                            mac_address = None  # never surface the placeholder itself
                     ports_raw.append({
+                        'id': p.get('Id'),
                         'port_number': port_number,
-                        'mac_address': macs[0] if macs else None,
+                        'mac_address': mac_address,
+                        'mac_source': mac_source,
                         'link_status': p.get('LinkStatus'),
                     })
             elif 'NetworkDeviceFunctions' in adapter:  # older split schema
                 ndf_col = rf_get(module, base, adapter['NetworkDeviceFunctions']['@odata.id'])
                 for f in collection_members(module, base, ndf_col):
                     eth = f.get('Ethernet', {}) or {}
-                    mac = eth.get('MACAddress') or eth.get('PermanentMACAddress')
+                    mac_address = eth.get('MACAddress') or eth.get('PermanentMACAddress')
+                    mac_source = None
+                    if is_placeholder_mac(mac_address):
+                        fallback_mac = eth_ifaces_lookup.get(base_port_id_from_interface_id(f.get('Id')) or f.get('Id'))
+                        if fallback_mac:
+                            mac_address = fallback_mac
+                            mac_source = ('EthernetInterfaces (NetworkDeviceFunctions reported a '
+                                          'placeholder/missing MAC for this port)')
+                        else:
+                            mac_address = None
                     phys_port = f.get('PhysicalPortAssignment')
                     ports_raw.append({
-                        'port_number': phys_port if phys_port is not None else len(ports_raw) + 1,
-                        'mac_address': mac,
+                        'id': f.get('Id'),
+                        'port_number': phys_port if isinstance(phys_port, int) else len(ports_raw) + 1,
+                        'mac_address': mac_address,
+                        'mac_source': mac_source,
                         'link_status': None,
                     })
 
@@ -432,6 +560,7 @@ def discover_network(module, base, virtual_domain=None, devlink_port_naming=Fals
                     # order for these resources.
                     'port_number': p['port_number'] if p['port_number'] is not None else idx + 1,
                     'mac_address': p['mac_address'],
+                    'mac_source': p['mac_source'],
                     'link_status': p['link_status'],
                     'predicted_linux_ifname': predict_iface_name(
                         onboard, slot_number, idx, onboard_idx,
@@ -767,7 +896,7 @@ def main():
 
     vendor = system.get('Manufacturer') or root.get('Vendor') or 'unknown'
 
-    network_adapters = discover_network(module, base, virtual_domain=domain if virtualbmc else None,
+    network_adapters = discover_network(module, base, system=system, virtual_domain=domain if virtualbmc else None,
                                          devlink_port_naming=module.params['devlink_port_naming'])
     storage = discover_storage(module, base, system)
 

@@ -293,6 +293,35 @@ suffix onto every adapter that host has. Each port also carries a
 `devlink_port_name_guessed: true/false` field reflecting whether the
 suffix was actually applied, so it's easy to confirm what happened.
 
+## MAC address cross-check (Dell iDRAC8)
+
+No single Redfish network resource is reliable across every vendor and
+firmware generation — confirmed on real Dell iDRAC8 hardware (PowerEdge
+R630): the newer, richer `NetworkAdapters/.../Ports` schema (added to
+the DMTF spec later, for PCI-slot/multi-port modeling) returned the
+literal placeholder `00:00:00:00:00:00` for `AssociatedMACAddresses` on
+every port of one adapter, and a raw `@odata.id` reference object
+instead of an integer for `PhysicalPortNumber` — both symptoms of the
+same underlying gap in that firmware's implementation of the newer
+schema, even though the adapter itself was real and working. This
+matches the reasoning behind Ironic/Sushy's own primary MAC-discovery
+path (`Systems/{id}/EthernetInterfaces`), which is the older, simpler,
+far more consistently-implemented DMTF resource — present since
+Redfish 1.0. It has its own vendor-specific gaps too (an open Sushy bug
+tracks Dell hardware splitting MAC and link/health data across two
+separate `EthernetInterfaces` entries), which is exactly why this
+module doesn't switch to it exclusively — it cross-references both:
+`Systems/{id}/EthernetInterfaces` is fetched as a fallback source, and
+for any port where `NetworkAdapters/Ports` data looks bogus
+(placeholder or missing MAC), a matching `EthernetInterfaces` entry is
+preferred instead, matched by Dell's own `<adapter-fqdd>-<port>-<function>`
+Id convention. Each port carries a `mac_source` field (`null` normally,
+otherwise a short explanation) so it's easy to see when this fallback
+actually fired. `PhysicalPortNumber` is also never trusted by type
+alone anymore — a non-integer value falls through the same
+`port_number_from_id()`/positional fallback chain already used when
+it's simply absent.
+
 ## ⚠️ Known limitation: disk `by-path` accuracy
 
 The SCSI target portion of `/dev/disk/by-path/pci-...-scsi-H:C:T:L` (the
@@ -558,6 +587,255 @@ Any boot-disk or bond-member-resolution problem is collected into
 `agent_config_warnings` and printed at the end of the run — check that
 output before applying the generated file.
 
+## Verifying predictions against real hardware (live boot)
+
+Everything above — `predicted_linux_ifname`, `predicted_by_path`,
+`wwn`, `serial_number`, `devlink_port_name_guessed` — is a *prediction*
+from Redfish data. Redfish also has no visibility at all into multipath,
+Fibre Channel, or how the kernel's own drivers actually behave — that's
+OS/HBA-driver territory, invisible to any BMC. The only way to get
+ground truth for any of this is to actually boot the box and look.
+
+This is a two-part system, built and tested end-to-end (including
+transpiling the real Butane config with the actual `butane` binary, and
+POSTing a realistic payload through the real webhook logic) short of
+needing live BMC/web-server access to test the last mile:
+
+- **`verify-boot/`** — a generic (no hostname, no per-host anything)
+  Butane/Ignition config plus `collect-facts.sh`, a dependency-minimal
+  bash script that gathers `lsblk -J`, `ip -j addr`, `ethtool -i` per
+  NIC (driver name — the ground truth for `devlink_port_naming`),
+  `multipath -ll`, `/sys/class/fc_host/*` (Fibre Channel), `nvme list -o
+  json`, and `udevadm info` per block device, POSTs it all as one JSON
+  blob to the webhook, then powers the machine off. Read-only — this
+  boots the *live* ISO (RAM-only), never installs anything, so it's
+  safe to run against a box that already has an OS on it.
+- **`webhook/verify_webhook.py`** — a single stdlib-only Python process
+  (plus PyYAML, already a hard dependency via Ansible itself). Its
+  **only** job is receiving `collect-facts.sh`'s reports — it does not
+  serve `verify.iso` or anything else. Host identification is
+  **session-based**, not MAC-search-based: `mount-verify-media.yaml`
+  generates a fresh random UUID for every run and registers it (`POST
+  /session/register`, telling the webhook exactly which
+  `hw_inventory.yaml` and `target_host` to expect) *before* anything
+  boots; that UUID gets baked into that specific run's
+  `collect-facts.sh` and sent back in its report, so matching is a
+  direct dict lookup, not a search. This replaced an earlier
+  MAC-overlap search across every cluster's `hw_inventory.yaml`, which
+  had a real, confirmed failure mode on actual hardware: if the same
+  physical MACs happened to also appear in a stale/duplicated
+  `hw_inventory.yaml` under a *different* cluster (e.g. left over from
+  an earlier cluster rename), the search could — and did — silently
+  pick the wrong one, writing the report under the wrong
+  cluster/hostname with no error at all. A payload with no session
+  UUID at all (e.g. the shared, non-per-host ISO booted manually,
+  outside `mount-verify-media.yaml`'s flow) falls back to that same
+  MAC-search behavior — but the fallback now explicitly **rejects an
+  ambiguous match** (the same MACs tied across two or more different
+  clusters/hosts) instead of silently choosing one, listing every tied
+  candidate in the error.
+
+  Either way, it cross-checks every prediction against the live-boot
+  ground truth:
+  - writes a full report to `<cluster_dir>/output/verified/<hostname>.yaml`
+  - **auto-corrects** confirmed interface-name mismatches directly in
+    `hw_inventory.yaml` (backing up the original first, timestamped) —
+    low risk, since a wrong name is just cosmetic/matchable-by-MAC
+  - **does NOT auto-correct** disk-identifier mismatches (`wwn`/
+    `serial_number`/`predicted_by_path`) — flagged in the report only,
+    for manual review, since a wrong disk identifier changes *which
+    physical disk* gets selected as the boot device
+  - flags whether `devlink_port_naming` should actually be enabled or
+    disabled for that host, based on the *real* `phys_port_name`/
+    driver — not a guess
+  - for the session-based path: also flags when the booted host's
+    observed MACs have **zero overlap** with what's recorded for the
+    `target_host` the session was registered for
+    (`hardware_changed_warning` in the response/report) — since the
+    session already tells us exactly which host to expect, that
+    combination can only mean the hardware itself changed (NIC/board
+    swap) since discovery last ran, not a mismatched identity
+- **`manage-verify-iso.yaml`** — builds `verify.iso` **once per RHCOS
+  version+arch**, not per host, and writes it into a plain, standard
+  directory (`/var/www/html/coreos-isos` by default) for whatever web
+  server you already run to serve — this playbook doesn't install,
+  configure, or own a web server of any kind, only writes
+  world-readable files into a directory you point it at. At real fleet
+  scale (6–100+ servers pulling this ~1.3GB ISO concurrently during an
+  install run), a mature web server's static-file path (Apache's
+  worker/event MPM, native `Range`/`206` support) is the right tool for
+  that load, which a hand-rolled single-process listener isn't built
+  for — this is exactly the same reason `verify_webhook.py` stays
+  narrowly scoped to the small, low-volume POST endpoint instead.
+  Redfish virtual media boots over plain HTTP from any web server, so
+  **no PXE/TFTP infrastructure is needed at all** either.
+
+### Setup (once)
+
+1. Deploy the webhook — the only infrastructure this subsystem actually
+   adds; ISO serving reuses whatever web server you already have.
+   `deploy-verify-webhook.yaml` runs it **as you** — the user who
+   cloned this repo — reading `clusters/` directly from your own
+   checkout (no dedicated system account, no copy under `/opt`, nothing
+   to keep in sync). This is deliberate: multiple people can each clone
+   this on their own machine and run their own webhook with zero shared
+   setup, since it just uses whatever normal file permissions your
+   checkout already has. It installs PyYAML via the OS package manager
+   (not `pip` — this needs to work without PyPI access on airgapped/
+   restricted boxes, same reasoning as everywhere else in this
+   toolkit), renders its systemd unit, starts and enables the service,
+   opens its port in the firewall (detects firewalld first — if this
+   box uses something else, or a cloud security group instead, it
+   tells you plainly rather than silently doing nothing or failing),
+   and labels the port for SELinux if this box is in Enforcing mode (a
+   Linux capability or an open firewall port alone is **not**
+   sufficient on an enforcing box — SELinux is a separate layer
+   requiring its own port-type label; detects Enforcing/Permissive/
+   disabled first and skips cleanly rather than failing when it isn't
+   relevant). Root is needed only for those last two steps and writing
+   the systemd unit file — the service itself then runs entirely as
+   you, no elevated privilege at runtime. **Run it with
+   `--ask-become-pass`/`-K`, not literal `sudo ansible-playbook ...`**
+   — the playbook captures your identity before any become elevation
+   specifically so the service ends up running as you; invoking via
+   plain `sudo` directly would see "root" instead:
+   ```
+   ansible-playbook deploy-verify-webhook.yaml --ask-become-pass
+   ```
+   Safe to re-run any time (every task is idempotent — tested
+   explicitly, including the firewall and SELinux steps only
+   adding/reloading when genuinely not already in place). Override the
+   port with `-e verify_webhook_port=9090` if 8090 collides with
+   something else on that box, or the OS package name with
+   `-e verify_webhook_os_family=Debian` if this isn't a RHEL-family box.
+2. Build a `verify.iso` for the RHCOS version you care about (once —
+   reused for every host). Also needs root, to write under
+   `/var/www/html` (or wherever you point `iso_web_root`):
+   ```
+   ansible-playbook manage-verify-iso.yaml --ask-become-pass \
+     -e rhcos_iso_url='https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.20/latest/rhcos-live-iso.x86_64.iso' \
+     -e rhcos_version=4.20 \
+     -e webhook_url='http://<this-host>:8090'
+   ```
+   If `/var/www/html` is already Apache's docroot on that box, the ISO
+   is immediately servable at
+   `http://<this-host>/coreos-isos/4.20/x86_64/verify.iso` — nothing
+   else to configure. Override `-e iso_web_root=...` if your web
+   server's docroot is somewhere else instead.
+
+### Per-host verification
+
+**Networking note first**: the base Ignition has no network config at
+all — it relies on DHCP. On a statically-addressed production network
+(the normal case — see `cluster.yaml`'s `machine_network_cidr` and
+every host's own static `ip` in `inventory/hosts.yaml`), that means the
+live boot gets **no usable address at all** on its real NICs, only
+whatever link-local address its BMC's own USB NIC hands out (confirmed
+directly: `collect-facts.sh` retrying against the webhook forever, `ip
+addr` on the console showing only a `169.254.x.x` address on the BMC's
+USB interface — not a real network path anywhere). `mount-verify-media.yaml`
+handles this automatically: it derives a small per-host static-IP
+NetworkManager keyfile from the exact same data already in
+`inventory/hosts.yaml` and `vars/cluster.yaml` — matched by **MAC
+address**, not a name prediction, since that's exactly the kind of
+thing this tool exists to verify, not assume.
+
+**Session note second**: every run generates a fresh random UUID,
+registers it with the webhook (telling it exactly which
+`hw_inventory.yaml`/`target_host` to expect) *before* anything boots,
+and bakes that UUID into a **fresh per-run Ignition transpile** — this
+playbook re-runs `butane` itself every time (auto-downloading it if not
+already present, same as `manage-verify-iso.yaml`), rather than reusing
+a persisted config, specifically so the UUID ends up inside
+`collect-facts.sh`. That UUID is what makes host matching on the
+webhook side a direct lookup instead of a MAC-overlap search across
+every cluster — which had a real, confirmed failure mode on actual
+hardware (a stale/duplicated `hw_inventory.yaml` under a different
+cluster, sharing the same physical MACs, silently won the match) — and
+what this playbook itself polls afterward for the result, rather than
+a host's static IP (which gets reused across every run against the
+same box, so a stale result from an earlier attempt could otherwise
+answer a brand new poll instantly).
+
+Both pieces — the network keyfile and this run's Ignition — go into
+ONE combined `coreos-installer iso customize --live-ignition ...
+--network-keyfile ...` call, built fresh from `base-live.iso` every
+time. Built fresh, not layered onto anything: `iso customize` is
+`coreos-installer`'s single authoritative "configure everything in one
+pass" command, and running it a second time on an ISO a prior
+`customize`/`ignition embed` call already touched is not a
+documented-safe composition — confirmed on real hardware to silently
+clobber the previously-set Ignition (`Ignition: no config provided by
+user` at boot, despite the embed step itself reporting success).
+`base-live.iso` stays the single source of truth either way; nothing
+about `manage-verify-iso.yaml`'s one-per-version design changes.
+
+Prefer the `run-cluster.sh` wrapper — it derives `-i` and `cluster_dir`
+from one cluster name the same way it already does for `discover`/
+`agent-config`/`acm-manifests`, so they can't end up pointing at two
+different clusters (an easy mistake to make passing them separately by
+hand, and one that fails confusingly deep into a run rather than
+immediately):
+```
+./run-cluster.sh ocp-lab mount-verify-media -- \
+  -e target_host=server01-bmc \
+  -e rhcos_version=4.20 \
+  -e webhook_host=<host-your-BMCs-can-actually-reach>
+```
+Or call the playbook directly if you need to (e.g. a custom `-i`):
+```
+ansible-playbook mount-verify-media.yaml --ask-become-pass \
+  -i clusters/ocp-lab/inventory/hosts.yaml \
+  -e cluster_dir=clusters/ocp-lab \
+  -e target_host=server01-bmc \
+  -e rhcos_version=4.20 \
+  -e webhook_host=<host-your-BMCs-can-actually-reach>
+```
+(`webhook_host` isn't necessarily the same address your Ansible control
+node uses to reach the BMC — it's the address *the BMC's own management
+network* can reach *this* box at, which can genuinely be a different
+path; see the troubleshooting note below.)
+
+The host boots, reports, and powers itself off automatically — this
+task itself waits for and shows the actual result (polling the
+webhook's own record of this run, not just a timeout), typically a few
+minutes. `<cluster_dir>/output/verified/<hostname>.yaml` holds the same
+result afterward if you need it again.
+
+**Bonded networks**: this only brings up the one "boot" NIC (the same
+primary member `generate-agent-config.yaml`/ACM manifests already treat
+as primary) with the full host IP statically assigned — it does not
+replicate a full bond. Usually fine for a diagnostic boot, but if your
+switches strictly enforce LACP before passing any traffic on a bond
+member port, this may not get you connectivity either — that's a
+switch-config question, not something this playbook can work around.
+
+### Not yet covered / worth knowing
+
+- **Vendor coverage**: `mount-verify-media.yaml`'s Redfish virtual-media
+  sequence (InsertMedia/boot-override/Reset) matches Dell iDRAC9 exactly
+  (this repo's own confirmed usage elsewhere). HPE iLO/Lenovo XCC
+  implement the same DMTF-standard actions but at different endpoint
+  paths — adjust `bmc_manager_path`/`bmc_system_path`/
+  `bmc_virtual_media_id` for those vendors; not verified against real
+  HPE/Lenovo hardware here.
+- **ISO version strategy**: a verification boot isn't installing
+  anything, so it mostly just needs *recent-enough kernel drivers* for
+  your hardware — it doesn't need to exactly match every OCP version
+  you're targeting. Consider keeping a small rolling set (e.g. the
+  newest supported minor per architecture) rather than one ISO per every
+  OCP version ever used, to keep `manage-verify-iso.yaml`'s storage
+  footprint down.
+- **`multipath`/FC/NVMe**: `collect-facts.sh` gathers this (see above),
+  and it's in every report, but `verify_webhook.py` doesn't cross-check
+  it against anything yet — `hw_inventory.yaml`/`redfish_hw_facts.py`
+  don't discover multipath/FC topology via Redfish at all currently
+  (Redfish's `Storage`/`Volumes` schema doesn't really model HBA/FC
+  fabric topology the way it models local drives). The raw data is
+  there in the report for now; a future pass could add FC WWPN
+  discovery via `SimpleStorage`/`FibreChannel` Redfish resources where
+  BMCs expose them, and cross-check against what's actually observed.
+
 ## Files
 
 ```
@@ -567,9 +845,18 @@ redfish-hw-inventory/
 ├── playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)
 ├── generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)
 ├── generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)
+├── manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see "Verifying predictions..."
+├── mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it
+├── deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port
 ├── library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work
 ├── filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic
 ├── filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic
+├── verify-boot/
+│   ├── verify.bu                     # generic Butane config embedded into verify.iso
+│   └── collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off
+├── webhook/
+│   ├── verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server
+│   └── verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml
 ├── tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]
 ├── README.adf.json                         # this README, pre-converted to ADF
 └── clusters/

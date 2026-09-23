@@ -1,60 +1,103 @@
 ---
 # deploy-verify-webhook.yaml
 #
-# Installs verify_webhook.py as a systemd service on this box (the same
-# one already running Apache for the ISO library - see
-# manage-verify-iso.yaml), and opens its port in the firewall. Run once;
-# safe to re-run (every task here is idempotent) after pulling in
-# changes to webhook/verify_webhook.py.
+# Installs verify_webhook.py as a systemd service running AS YOU - the
+# user who cloned this repo and is running this playbook - reading
+# clusters/ directly from THIS checkout (Ansible's playbook_dir, the
+# directory this very file lives in). NOT a dedicated system account,
+# NOT a copy under /opt. This is the whole point: clusters/*/output/
+# hw_inventory.yaml is owned by whoever cloned the repo, with completely
+# normal file permissions (0644/0755, nothing special) - a different
+# account (a dedicated 'verify-webhook' system user, or a copy under
+# /opt owned by root) would need its own permission-granting work
+# EVERY time, for EVERY person who clones this, on EVERY machine.
+# Running as you, reading straight from your own checkout, just works
+# identically for everyone with zero extra setup - confirmed this is
+# also exactly how multiple people on separate machines, each in their
+# own clone, are expected to use this (no shared/global install at all).
 #
-# Deliberately targets localhost/connection:local, same as every other
-# playbook in this repo - run it ON the box you want the webhook
-# running on, the same way you'd run manage-verify-iso.yaml there.
+# Root is needed for exactly two things, both one-time setup, neither
+# of them the service itself: opening the firewall port, and writing
+# the systemd unit file. The service that actually runs afterward is
+# entirely yours - no elevated privilege at runtime at all.
+#
+# Run once; safe to re-run (every task here is idempotent). After
+# pulling changes to webhook/verify_webhook.py, no redeploy step is
+# needed at all (ExecStart points straight at your checkout, not a
+# copy) - just restart the service:
+#   systemctl restart verify-webhook
+#
+# IMPORTANT: run this with Ansible's OWN become mechanism
+# (--ask-become-pass / -K), NOT by literally typing `sudo ansible-
+# playbook ...` yourself. This playbook captures YOUR identity from the
+# environment before any become elevation happens, specifically so the
+# service ends up running as you, not root - invoking via literal sudo
+# would make that capture see "root" instead, defeating the entire
+# point. (SUDO_USER is also checked as a fallback, in case you did use
+# plain sudo anyway - but --ask-become-pass/-K is the intended flow.)
 #
 # Usage:
-#   ansible-playbook deploy-verify-webhook.yaml
-#   ansible-playbook deploy-verify-webhook.yaml -e verify_webhook_port=9090   # override the default
+#   ansible-playbook deploy-verify-webhook.yaml --ask-become-pass
+#   ansible-playbook deploy-verify-webhook.yaml --ask-become-pass -e verify_webhook_port=9090   # override the default
 
 - hosts: localhost
   gather_facts: false
   connection: local
-  become: true
   vars:
-    verify_webhook_install_dir: /opt/redfish-hw-inventory
     verify_webhook_port: 8090
-    verify_webhook_user: verify-webhook
+    # gather_facts is off (matches every other playbook here), so the OS
+    # family isn't auto-detected - defaults to RedHat-family package
+    # naming for PyYAML below; override explicitly on Debian/Ubuntu:
+    #   -e verify_webhook_os_family=Debian
+    verify_webhook_os_family: RedHat
 
   tasks:
-    - name: Ensure the dedicated service user exists
-      user:
-        name: "{{ verify_webhook_user }}"
-        system: true
-        shell: /sbin/nologin
-        create_home: false
+    - name: Capture who's actually running this (before any become elevation)
+      set_fact:
+        verify_webhook_user: "{{ lookup('env', 'SUDO_USER') or lookup('env', 'USER') }}"
+        verify_webhook_project_root: "{{ playbook_dir }}"
+      # lookup() is evaluated by the Ansible engine on the controller
+      # itself, never dispatched through become - this reflects you
+      # regardless of this play's own become: true settings below.
+      # SUDO_USER first, in case this was invoked via literal `sudo
+      # ansible-playbook` rather than --ask-become-pass/-K (see header
+      # comment) - USER alone would incorrectly read "root" in that case.
 
-    - name: Ensure PyYAML is available for that interpreter
-      pip:
-        name: pyyaml
-        executable: pip3
+    - name: That must have actually resolved to a real user, not root
+      assert:
+        that:
+          - verify_webhook_user | length > 0
+          - verify_webhook_user != 'root'
+        fail_msg: >-
+          Could not determine your real username (got
+          '{{ verify_webhook_user | default("") }}') - either $USER
+          isn't set in this shell, or this was invoked via literal
+          `sudo ansible-playbook` in a way that lost it. Pass it
+          explicitly: -e verify_webhook_user=<your-username>, or
+          re-invoke with --ask-become-pass/-K instead of sudo (see this
+          file's header comment for why that distinction matters here).
 
-    - name: Ensure the install directory exists
-      file:
-        path: "{{ verify_webhook_install_dir }}/webhook"
-        state: directory
-        owner: "{{ verify_webhook_user }}"
-        group: "{{ verify_webhook_user }}"
-        mode: "0750"
+    - name: Look up your primary group (the systemd unit needs both User= and Group=)
+      command: "id -gn {{ verify_webhook_user }}"
+      register: verify_webhook_group_lookup
+      changed_when: false
 
-    - name: Copy the webhook itself
-      copy:
-        src: webhook/verify_webhook.py
-        dest: "{{ verify_webhook_install_dir }}/webhook/verify_webhook.py"
-        owner: "{{ verify_webhook_user }}"
-        group: "{{ verify_webhook_user }}"
-        mode: "0750"
-      notify: restart verify-webhook
+    - name: Set the resolved group
+      set_fact:
+        verify_webhook_group: "{{ verify_webhook_group_lookup.stdout }}"
 
-    - name: Render and install the systemd unit
+    - name: Ensure PyYAML is available, via the OS package manager
+      become: true
+      package:
+        name: "{{ 'python3-yaml' if verify_webhook_os_family == 'Debian' else 'python3-pyyaml' }}"
+        state: present
+      # Not pip: this needs to work on airgapped/restricted boxes with
+      # no PyPI access, using whatever repo/satellite/mirror the box
+      # already trusts - the same reasoning this whole toolkit already
+      # follows elsewhere.
+
+    - name: Render and install the systemd unit (runs as you, reads this checkout directly - nothing copied anywhere)
+      become: true
       template:
         src: webhook/verify-webhook.service.j2
         dest: /etc/systemd/system/verify-webhook.service
@@ -62,11 +105,62 @@
       notify: restart verify-webhook
 
     - name: Reload systemd and enable/start the service
+      become: true
       systemd:
         name: verify-webhook
         daemon_reload: true
         enabled: true
         state: started
+
+    # --------------------------------------------------------------------
+    # SELinux: a Linux capability or an open firewall port is NOT enough
+    # on its own on an enforcing box - SELinux is a separate layer, and a
+    # generic systemd-launched service needs an explicit port-type label
+    # to bind ANY port outside what's already permitted for its domain.
+    # High, unprivileged ports (>1024, like the 8090 default) are broadly
+    # permitted for unconfined_service_t on RHEL's targeted policy - but
+    # "broadly" isn't "guaranteed" on a hardened/custom policy, so this
+    # adds the label defensively either way, and it becomes load-bearing
+    # rather than just defensive the moment you point this at a
+    # privileged port (e.g. binding 80 directly, per the CAP_NET_BIND_
+    # SERVICE discussion) instead of the 8090 default.
+    # Detects whether SELinux is even present/enforcing first, same
+    # detect-before-acting pattern as the firewalld block below - skips
+    # cleanly, doesn't fail, when it isn't.
+    # --------------------------------------------------------------------
+
+    - name: Check whether SELinux is enforcing here
+      command: getenforce
+      register: selinux_status
+      changed_when: false
+      failed_when: false
+
+    - name: Label this port for SELinux, if enforcing
+      become: true
+      when: selinux_status.stdout == 'Enforcing'
+      block:
+        - name: Check whether the port already has a type
+          command: "semanage port -l -C"
+          register: semanage_ports
+          changed_when: false
+          failed_when: false
+
+        - name: Add the SELinux port label (only if not already labeled)
+          command: "semanage port -a -t http_port_t -p tcp {{ verify_webhook_port }}"
+          when: "(verify_webhook_port | string) not in semanage_ports.stdout"
+          register: semanage_result
+          failed_when: >-
+            semanage_result.rc != 0 and 'already defined' not in semanage_result.stderr
+
+    - name: SELinux isn't enforcing here - nothing to label
+      debug:
+        msg: >-
+          SELinux is not in Enforcing mode on this box (checked via
+          `getenforce`), so this playbook did not add a port label.
+          If you later enable enforcing mode, re-run this playbook, or
+          label it yourself: semanage port -a -t http_port_t -p tcp
+          {{ verify_webhook_port }}
+      when: selinux_status.stdout != 'Enforcing'
 
     # --------------------------------------------------------------------
     # Firewall: open verify_webhook_port so BMCs/booted hosts can actually
@@ -84,6 +178,7 @@
       failed_when: false
 
     - name: Open the webhook's port in firewalld
+      become: true
       when: firewalld_active.stdout == 'active'
       block:
         - name: Check whether the port is already open (permanent zone)
@@ -122,11 +217,15 @@
     - name: Done
       debug:
         msg:
-          - "verify-webhook is running and listening on :{{ verify_webhook_port }}."
+          - "verify-webhook is running as {{ verify_webhook_user }}, listening on :{{ verify_webhook_port }}."
+          - "PROJECT_ROOT is {{ verify_webhook_project_root }} - your own checkout, read directly."
+          - "This is only the report listener - ISO serving is handled by whatever"
+          - "web server you already have (see manage-verify-iso.yaml)."
           - "Use webhook_url=http://<this-host>:{{ verify_webhook_port }} when building verify.iso."
 
   handlers:
     - name: restart verify-webhook
+      become: true
       systemd:
         name: verify-webhook
         state: restarted
