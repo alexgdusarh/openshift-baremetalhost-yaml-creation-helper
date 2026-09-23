@@ -40,6 +40,29 @@ DEFAULT_MIN_BOOT_BYTES = 120 * (10 ** 9)  # 120 GB, decimal (matches how
                                            # CapacityBytes is reported)
 
 
+def _assert_hashable_port_key(key, port):
+    """Defense in depth: library/redfish_hw_facts.py is now careful to
+    never produce a non-scalar port_number (confirmed needed on real
+    Dell iDRAC8 hardware, where the BMC itself returned a raw
+    @odata.id reference object instead of an integer for
+    PhysicalPortNumber), but a genuinely unknown vendor/firmware quirk
+    could still slip an unhashable value like a dict or list through
+    some day. Fails with a clear, actionable message pointing at
+    exactly which port - instead of a bare "unhashable type: 'dict'"
+    with no indication of where it came from."""
+    try:
+        hash(key)
+    except TypeError:
+        raise ValueError(
+            "port_number for adapter '%s' port '%s' is not a plain value "
+            "(got %r) - check hw_inventory.yaml directly; this usually "
+            "means the BMC returned something unexpected for this port's "
+            "Redfish PhysicalPortNumber/Id and needs a targeted fix in "
+            "library/redfish_hw_facts.py, not here."
+            % (key[0], port.get('port_number'), port.get('port_number'))
+        )
+
+
 # --------------------------------------------------------------------------
 # link_aggregation option validation
 # --------------------------------------------------------------------------
@@ -360,6 +383,7 @@ def flatten_ports(network_adapters, host_layout=None):
     for adapter in (network_adapters or []):
         for port in adapter.get('ports', []):
             key = (adapter.get('adapter_id'), port.get('port_number'))
+            _assert_hashable_port_key(key, port)
             name = overrides.get(key) or port.get('predicted_linux_ifname')
             mac = port.get('mac_address')
             if not name or not mac:
@@ -376,7 +400,9 @@ def _port_lookup(network_adapters):
     lookup = {}
     for adapter in (network_adapters or []):
         for port in adapter.get('ports', []):
-            lookup[(adapter.get('adapter_id'), port.get('port_number'))] = port
+            key = (adapter.get('adapter_id'), port.get('port_number'))
+            _assert_hashable_port_key(key, port)
+            lookup[key] = port
     return lookup
 
 

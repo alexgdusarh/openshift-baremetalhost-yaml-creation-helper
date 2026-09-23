@@ -24,7 +24,29 @@ def _port_lookup(network_adapters):
     lookup = {}
     for adapter in (network_adapters or []):
         for port in adapter.get('ports', []):
-            lookup[(adapter.get('adapter_id'), port.get('port_number'))] = port
+            key = (adapter.get('adapter_id'), port.get('port_number'))
+            # Defense in depth: redfish_hw_facts.py is now careful to
+            # never produce a non-scalar port_number (confirmed needed
+            # on real Dell iDRAC8 hardware, where the BMC itself
+            # returned a raw @odata.id reference object instead of an
+            # integer for PhysicalPortNumber), but a genuinely unknown
+            # vendor/firmware quirk could still slip an unhashable value
+            # like a dict or list through some day. Fail with a clear,
+            # actionable message pointing at exactly which port -
+            # instead of a bare "unhashable type: 'dict'" with no
+            # indication of where it came from.
+            try:
+                hash(key)
+            except TypeError:
+                raise ValueError(
+                    "port_number for adapter '%s' port '%s' is not a plain "
+                    "value (got %r) - check hw_inventory.yaml directly; this "
+                    "usually means the BMC returned something unexpected for "
+                    "this port's Redfish PhysicalPortNumber/Id and needs a "
+                    "targeted fix in library/redfish_hw_facts.py, not here."
+                    % (adapter.get('adapter_id'), port.get('port_number'), port.get('port_number'))
+                )
+            lookup[key] = port
     return lookup
 
 

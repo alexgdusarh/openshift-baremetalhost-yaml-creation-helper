@@ -24,6 +24,7 @@
 
 set -u
 WEBHOOK_URL="${WEBHOOK_URL:-__WEBHOOK_URL__}"
+SESSION_UUID="__SESSION_UUID__"
 LOG_TAG="verify-boot"
 MAX_ATTEMPTS=5
 RETRY_DELAY=10
@@ -32,8 +33,30 @@ log() { logger -t "$LOG_TAG" -- "$*"; echo "[$LOG_TAG] $*"; }
 
 b64() { base64 -w0 2>/dev/null || base64; }  # -w0 not on every base64; fall back
 
+# Runs a command that's supposed to print JSON on success. Correctly
+# handles the case (confirmed on real hardware, via nvme-cli specifically:
+# it prints {"error": "..."} to STDOUT and STILL exits non-zero when it
+# can't enumerate anything) where a command prints something to stdout
+# AND fails - the naive 'cmd 2>/dev/null || echo null' pattern this
+# replaced only checks the exit code, so on that combination it doesn't
+# discard the already-printed output, it APPENDS 'null' right after it -
+# two JSON values silently concatenated into one field, invalid JSON the
+# instant it's embedded as a single value. This discards the command's
+# entire stdout whenever the exit code is non-zero (or nothing was
+# printed at all), full stop - 'null' only, never a mix of the two.
+json_or_null() {
+  local out rc
+  out=$("$@" 2>/dev/null)
+  rc=$?
+  if [ "$rc" -eq 0 ] && [ -n "$out" ]; then
+    printf '%s' "$out"
+  else
+    printf 'null'
+  fi
+}
+
 # ---- disks --------------------------------------------------------------
-LSBLK_JSON=$(lsblk -J -O 2>/dev/null || echo 'null')
+LSBLK_JSON=$(json_or_null lsblk -J -O)
 
 BY_ID=$(ls -la /dev/disk/by-id/ 2>/dev/null | b64)
 BY_PATH=$(ls -la /dev/disk/by-path/ 2>/dev/null | b64)
@@ -51,7 +74,7 @@ MULTIPATH_B64=$(printf '%s' "$MULTIPATH_RAW" | b64)
 # NVMe: nvme-cli ships on RHCOS for NVMe-oF support; -o json avoids any
 # text-parsing on our side entirely.
 if command -v nvme >/dev/null 2>&1; then
-  NVME_JSON=$(nvme list -o json 2>/dev/null || echo 'null')
+  NVME_JSON=$(json_or_null nvme list -o json)
 else
   NVME_JSON='null'
 fi
@@ -91,8 +114,8 @@ done
 UDEV_B64=$(printf '%s' "$UDEV_RAW" | b64)
 
 # ---- network --------------------------------------------------------------
-IP_ADDR_JSON=$(ip -j addr 2>/dev/null || echo 'null')
-IP_LINK_JSON=$(ip -j link 2>/dev/null || echo 'null')
+IP_ADDR_JSON=$(json_or_null ip -j addr)
+IP_LINK_JSON=$(json_or_null ip -j link)
 
 # ethtool -i per interface: the ground truth for driver name, which is
 # exactly what settles a devlink_port_naming (npX suffix) guess - a real
@@ -125,6 +148,7 @@ PAYLOAD=$(cat <<PAYLOAD_EOF
   "product_uuid": "${PRODUCT_UUID}",
   "product_serial": "${PRODUCT_SERIAL}",
   "collected_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "session_uuid": "${SESSION_UUID}",
   "lsblk": ${LSBLK_JSON},
   "ip_addr": ${IP_ADDR_JSON},
   "ip_link": ${IP_LINK_JSON},
@@ -139,23 +163,54 @@ PAYLOAD=$(cat <<PAYLOAD_EOF
 PAYLOAD_EOF
 )
 
+# Send the whole payload base64-wrapped, not raw JSON - this makes the
+# webhook's own decode step (not this script) the single place that
+# turns bytes back into JSON, and lets it log the EXACT raw content on a
+# parse failure (both the base64 as received and the decoded text) for
+# direct inspection via journalctl, instead of guessing blind at what
+# might be wrong. The base64 alphabet itself can't be corrupted by
+# anything that would break JSON, so this also rules transport-layer
+# mangling in or out cleanly, separate from whether the CONTENT is
+# genuinely malformed JSON.
+PAYLOAD_B64=$(printf '%s' "$PAYLOAD" | b64)
+
 sent=false
 for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   log "POSTing facts to ${WEBHOOK_URL} (attempt ${attempt}/${MAX_ATTEMPTS})"
-  if curl -sf --max-time 30 -X POST -H 'Content-Type: application/json' \
-       --data-binary "$PAYLOAD" "${WEBHOOK_URL%/}/verify"; then
-    log "Webhook accepted the payload."
+  http_code=$(curl -s -o /tmp/webhook_response.json -w '%{http_code}' --max-time 30 \
+    -X POST -H 'Content-Type: text/plain' \
+    --data-binary "$PAYLOAD_B64" "${WEBHOOK_URL%/}/verify" 2>&1)
+  curl_rc=$?
+  # The collector's job is to collect and deliver - period. Whether the
+  # webhook then says "matched host X" or "no host matched these MACs"
+  # or anything else is the LISTENER's business logic, not this script's
+  # concern, and retrying an IDENTICAL payload 5 times against that same
+  # business-logic outcome accomplishes nothing except wasting ~50s and
+  # muddying the log with repeated "failures" that were never failures
+  # of collection or delivery at all. So: success here means the webhook
+  # was actually REACHED and RESPONDED - any HTTP status code at all,
+  # not specifically 200. The one thing actually worth retrying is a
+  # genuine delivery failure: curl never got a response back (connection
+  # refused/timed out/no route) - that's the only case where trying
+  # again might plausibly get a different outcome.
+  if [ "$curl_rc" -eq 0 ]; then
+    log "Webhook reached and responded: HTTP ${http_code}. Response body: $(cat /tmp/webhook_response.json 2>/dev/null | head -c 500)"
     sent=true
     break
   fi
-  log "Webhook POST failed, retrying in ${RETRY_DELAY}s"
+  log "Webhook POST failed: curl exit code ${curl_rc} (no HTTP response received - connection/network problem, not a webhook-side error). curl said: ${http_code}"
+  log "Retrying in ${RETRY_DELAY}s"
   sleep "$RETRY_DELAY"
 done
 
 if [ "$sent" != true ]; then
-  log "FAILED after ${MAX_ATTEMPTS} attempts - facts were NOT recorded. Powering off anyway."
+  log "FAILED after ${MAX_ATTEMPTS} attempts - never reached the webhook at all (delivery failure, not a data/matching problem). Powering off anyway."
 fi
 
-# Give journald a moment to flush console output before the machine drops.
-sleep 3
+# Give journald a moment to flush console output, and a real window to
+# actually read/screenshot the result on the console before it's gone -
+# 15s rather than the previous 3s, which was only ever meant to flush
+# logs, not give a human time to look at anything.
+log "Powering off in 15s - read/screenshot this now if you need to."
+sleep 15
 systemctl poweroff

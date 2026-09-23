@@ -1,19 +1,65 @@
 ---
 # mount-verify-media.yaml
 #
-# Mounts verify.iso (built once per RHCOS version+arch by
-# manage-verify-iso.yaml, reused for every host - see that file's header
-# comment) via Redfish virtual media on ONE target host, sets a one-time
-# boot-to-CD override, and resets it. The host boots the live ISO,
-# collect-facts.sh reports to the webhook, and the machine powers itself
-# off - nothing further to do here. Check the webhook's own log/systemd
-# journal, or <cluster_dir>/output/verified/<hostname>.yaml, for the
-# result.
+# Builds a per-host verify ISO FRESH from base-live.iso (built once by
+# manage-verify-iso.yaml - see that file), mounts it via Redfish virtual
+# media on ONE target host, sets a one-time boot-to-CD override, and
+# resets it. The host boots the live ISO, collect-facts.sh reports to
+# the webhook, and the machine powers itself off - nothing further to
+# do here. This task itself waits for and shows the actual result
+# (polling the webhook's own record of THIS run - see the SESSION
+# section below) rather than just declaring the boot "started".
 #
 # This does NOT touch the target's disk in any way (live boot only, no
-# install) - safe to run against a host that already has an OS on it,
-# which is the whole point (verifying predictions against a REAL,
-# already-provisioned box - see conversation history: master-00).
+# install) - safe to run against a host that already has an OS on it.
+#
+# SESSION / HOST IDENTIFICATION: this playbook generates a fresh random
+# UUID for every run and registers it with the webhook (POST
+# /session/register) BEFORE anything boots, telling it exactly which
+# hw_inventory.yaml and target_host to expect. That UUID gets baked into
+# THIS run's collect-facts.sh (via a fresh per-run Butane/Ignition
+# transpile - see below) and sent back in its report, so the webhook
+# matches by direct dict lookup, not by searching every cluster's
+# hw_inventory.yaml and guessing from MAC overlap. That guessing
+# approach was the ORIGINAL design and had a real, confirmed failure
+# mode on actual hardware: if the same physical MACs happened to also
+# appear in a stale/duplicated hw_inventory.yaml under a DIFFERENT
+# cluster (e.g. left over from an earlier cluster rename), the webhook
+# could - and did - silently pick the wrong one, writing the report
+# under the wrong cluster/hostname with no error at all. A session UUID
+# makes that structurally impossible: there is no search, only a lookup
+# by a value that's never been seen before this exact run. Polling for
+# the result works the same way, by this UUID rather than the host's
+# static IP - an IP gets reused across every verification run against
+# the same physical box, so a stale result from an earlier unrelated
+# attempt could otherwise answer a brand new poll instantly, with zero
+# actual wait - also confirmed as a real, not hypothetical, problem.
+#
+# NETWORKING: the base Ignition has no network config of its own at all
+# - it relies on DHCP. On a statically-addressed production network (the
+# normal case for OpenShift - see cluster.yaml's machine_network_cidr
+# and every host's own static `ip` in inventory/hosts.yaml), that means
+# the live boot gets NO usable address on its real NICs at all, only
+# whatever link-local address its BMC's own USB NIC happens to hand out -
+# confirmed directly (collect-facts.sh retrying against the webhook
+# forever, `ip addr` on the console showing only the 169.254.x.x iDRAC
+# USB link). So: this playbook derives a small per-host NetworkManager
+# keyfile (static IP, matched by MAC address - not by a name prediction,
+# since that's exactly the kind of thing this whole tool exists to
+# verify, not assume) from the SAME data already in inventory/hosts.yaml
+# and vars/cluster.yaml, and embeds it alongside this run's Ignition in
+# ONE combined `coreos-installer iso customize` call (see below for why
+# combined, not layered).
+#
+# CAVEAT worth knowing: for a bonded production network
+# (network_profile.type: bond), this only brings up ONE NIC (the same
+# "boot" member generate-agent-config.yaml/ACM manifests already treat
+# as primary) with the full host IP statically assigned - it does not
+# replicate the bond. This is normally fine for a diagnostic boot (the
+# switch port for that one link usually still passes untagged traffic),
+# but if your switches strictly enforce LACP before passing ANY traffic
+# on a bond member, this may not get you connectivity either - that's a
+# switch-config question, not something this playbook can work around.
 #
 # Vendor coverage: the InsertMedia/Boot-override/Reset sequence below
 # matches Dell iDRAC9's Redfish implementation exactly (confirmed against
@@ -24,20 +70,44 @@
 # those vendors (their Redfish docs list the exact paths for your
 # firmware version).
 #
+# Requires podman + the coreos-installer container image (same as
+# manage-verify-iso.yaml), and the butane binary (auto-downloaded if not
+# already present locally, same as manage-verify-iso.yaml - a fresh
+# per-run Ignition transpile happens here too, since this run's session
+# UUID has to be baked into collect-facts.sh, not just its network
+# config). Must run on the SAME box serving base-live.iso (reads it
+# locally, not over HTTP) and running the webhook (registers the
+# session and polls for the result via localhost).
+#
 # Usage (targets ONE host by its inventory_hostname):
-#   ansible-playbook mount-verify-media.yaml \
+#   ansible-playbook mount-verify-media.yaml --ask-become-pass \
 #     -i clusters/ocp-lab/inventory/hosts.yaml \
 #     -e cluster_dir=clusters/ocp-lab \
 #     -e target_host=server01-bmc \
-#     -e verify_iso_url='http://192.168.0.10/coreos-isos/4.20/x86_64/verify.iso'
+#     -e rhcos_version=4.20 \
+#     -e webhook_host=192.168.0.1
+#
+# (webhook_host is the address your BMCs can actually reach this box at -
+# not necessarily the same address your Ansible control node uses to
+# reach the BMC. arch defaults to x86_64; iso_web_root defaults to
+# /var/www/html/coreos-isos, matching manage-verify-iso.yaml - override
+# both the same way in both playbooks if you changed either default.)
+#
+# Or via run-cluster.sh (derives -i/cluster_dir from one cluster name):
+#   ./run-cluster.sh ocp-lab mount-verify-media -- \
+#     -e target_host=server01-bmc -e rhcos_version=4.20 -e webhook_host=192.168.0.1
 
 - hosts: localhost
   gather_facts: false
   connection: local
+  become: true  # writes the per-host derivative ISO under iso_web_root - same reasoning as manage-verify-iso.yaml
   vars:
     bmc_manager_path: iDRAC.Embedded.1   # HPE iLO: usually just '1'. Lenovo XCC: check your Redfish tree.
     bmc_system_path: System.Embedded.1   # HPE iLO: usually '1'.
     bmc_virtual_media_id: CD             # HPE iLO: often '2' (DVD) rather than 'CD'.
+    iso_web_root: /var/www/html/coreos-isos
+    arch: x86_64
+    verify_webhook_port: 8090  # matches deploy-verify-webhook.yaml's default - override the same way in both if you changed it
 
   tasks:
     - name: Required variables
@@ -45,10 +115,12 @@
         that:
           - cluster_dir is defined
           - target_host is defined
-          - verify_iso_url is defined and verify_iso_url | length > 0
+          - rhcos_version is defined and rhcos_version | length > 0
+          - webhook_host is defined and webhook_host | length > 0
         fail_msg: >-
-          cluster_dir, target_host, and verify_iso_url are all required -
-          see this file's header comment for a full example.
+          cluster_dir, target_host, rhcos_version, and webhook_host are
+          all required - see this file's header comment for a full
+          example.
 
     - name: Load this host's BMC connection details from inventory
       set_fact:
@@ -58,14 +130,317 @@
         bmc_validate: "{{ hostvars[target_host]['bmc_validate_certs'] | default(false) }}"
       when: target_host in (groups.get('bmc_hosts', []))
 
+    - name: An inventory must actually have been loaded via -i
+      assert:
+        that:
+          - groups.get('bmc_hosts', []) | length > 0
+        fail_msg: >-
+          No 'bmc_hosts' group is loaded at all - this almost always
+          means -i wasn't passed (or pointed at the wrong file), NOT
+          that the inventory file is wrong. cluster_dir is just a plain
+          variable, unrelated to what -i actually loaded, so a correct
+          cluster_dir does not guarantee the right inventory was used.
+          Pass -i {{ cluster_dir }}/inventory/hosts.yaml explicitly.
+
     - name: target_host must actually be in this inventory
       assert:
         that:
           - target_host in (groups.get('bmc_hosts', []))
         fail_msg: >-
-          '{{ target_host }}' is not in the bmc_hosts group of
-          {{ cluster_dir }}/inventory/hosts.yaml - check the hostname and
-          that you passed the right -i.
+          '{{ target_host }}' is not in the bmc_hosts group of whatever
+          inventory -i actually loaded ({{ groups['bmc_hosts'] }} is
+          what's there) - check the hostname itself, now that we know an
+          inventory genuinely was loaded.
+
+    - name: Load this cluster's network settings (gateway, dns, prefix_length)
+      include_vars:
+        file: "{{ cluster_dir }}/vars/cluster.yaml"
+
+    - name: Load discovered hardware inventory for this cluster
+      set_fact:
+        hw_inventory: "{{ lookup('file', cluster_dir ~ '/output/hw_inventory.yaml') | from_yaml }}"
+
+    - name: Resolve this host's boot MAC (same one used elsewhere for bootMACAddress)
+      set_fact:
+        verify_boot_mac: >-
+          {{
+            hw_inventory[target_host].network_adapters
+            | boot_mac_address({
+                'members': hostvars[target_host]['network_members'] | default([]),
+                'ip': hostvars[target_host]['ip'] | default(None),
+              })
+          }}
+
+    - name: Required per-host network data must actually be resolvable
+      assert:
+        that:
+          - verify_boot_mac is not none
+          - hostvars[target_host]['ip'] is defined
+          - gateway is defined
+          - network_profile is defined and network_profile.prefix_length is defined
+        fail_msg: >-
+          Could not resolve a static network config for '{{ target_host }}'
+          - check network_members/ip in inventory/hosts.yaml against
+          {{ cluster_dir }}/output/hw_inventory.yaml (for the MAC), and
+          gateway/network_profile.prefix_length in
+          {{ cluster_dir }}/vars/cluster.yaml.
+
+    # --------------------------------------------------------------------
+    # Session UUID: generated fresh for THIS run, registered with the
+    # webhook BEFORE anything boots, telling it exactly which
+    # hw_inventory.yaml and target_host to expect. collect-facts.sh (built
+    # into this run's per-host ISO below, with the UUID baked in) sends it
+    # straight back in its report, so matching is a direct dict lookup -
+    # no searching across every cluster's hw_inventory.yaml guessing by
+    # MAC overlap, which on real hardware picked the WRONG cluster/host
+    # when the same physical MACs happened to also appear in a stale/
+    # duplicated hw_inventory.yaml elsewhere. A uuid genuinely never seen
+    # before also means polling for it afterward can't ever return a
+    # stale result left over from an earlier, unrelated run against this
+    # same physical box (a real, separate bug confirmed on real hardware
+    # too, when polling by static IP: that IP gets reused across every
+    # verification run against the same box, but a fresh uuid never is).
+    # --------------------------------------------------------------------
+
+    - name: Generate this run's session UUID
+      command: python3 -c "import uuid; print(uuid.uuid4())"
+      register: session_uuid_gen
+      changed_when: false
+
+    - name: Set the session UUID and derived webhook URL
+      set_fact:
+        session_uuid: "{{ session_uuid_gen.stdout | trim }}"
+        webhook_url: "http://{{ webhook_host }}:{{ verify_webhook_port }}"
+
+    - name: Register this session with the webhook, before anything boots
+      uri:
+        url: "http://127.0.0.1:{{ verify_webhook_port }}/session/register"
+        method: POST
+        body_format: json
+        body:
+          uuid: "{{ session_uuid }}"
+          hw_inventory_path: "{{ (cluster_dir ~ '/output/hw_inventory.yaml') | realpath }}"
+          cluster_dir: "{{ cluster_dir | realpath }}"
+          target_host: "{{ target_host }}"
+        status_code: [200]
+      register: session_register_result
+
+    - name: Derive the shared and per-host ISO paths/URLs
+      set_fact:
+        base_iso_local_path: "{{ iso_web_root }}/{{ rhcos_version }}/{{ arch }}/base-live.iso"
+        per_host_iso_dir: "{{ iso_web_root }}/{{ rhcos_version }}/{{ arch }}/hosts"
+        build_dir: "/tmp/verify-media-build-{{ target_host }}"
+        butane_version: "0.29.0"
+        butane_bin: /usr/local/bin/butane
+
+    - name: Set the per-host ISO's local path and externally-reachable URL
+      set_fact:
+        per_host_iso_local_path: "{{ per_host_iso_dir }}/{{ target_host }}.iso"
+        per_host_iso_url: "http://{{ webhook_host }}/coreos-isos/{{ rhcos_version }}/{{ arch }}/hosts/{{ target_host }}.iso"
+
+    - name: The base ISO must already exist (built by manage-verify-iso.yaml)
+      stat:
+        path: "{{ base_iso_local_path }}"
+      register: base_iso_stat
+
+    - name: Fail clearly if it's missing
+      assert:
+        that:
+          - base_iso_stat.stat.exists
+        fail_msg: >-
+          {{ base_iso_local_path }} does not exist - run
+          manage-verify-iso.yaml for rhcos_version={{ rhcos_version }}
+          arch={{ arch }} first (matching iso_web_root if you changed it
+          from the default). This playbook builds its OWN fresh Ignition
+          per run now (see the butane transpile step below, needed to
+          bake this run's session UUID into collect-facts.sh) - it no
+          longer reads manage-verify-iso.yaml's persisted verify.ign at
+          all, only the untouched base-live.iso.
+
+    - name: Ensure the per-host ISO output and build directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ per_host_iso_dir }}"
+        - "{{ build_dir }}"
+
+    # --------------------------------------------------------------------
+    # Fresh per-run Ignition build: this run's session UUID has to be
+    # baked into collect-facts.sh itself, so it's sent back on every
+    # POST - that means transpiling Butane -> Ignition fresh, every run,
+    # rather than reusing manage-verify-iso.yaml's persisted verify.ign
+    # (which is host/run-agnostic and has no UUID in it at all). Same
+    # butane-fetch-if-missing pattern as manage-verify-iso.yaml.
+    # --------------------------------------------------------------------
+
+    - name: Check for a local butane binary
+      stat:
+        path: "{{ butane_bin }}"
+      register: butane_stat
+
+    - name: Download butane if not already present
+      become: true
+      get_url:
+        url: "https://github.com/coreos/butane/releases/download/v{{ butane_version }}/butane-{{ 'aarch64' if arch == 'aarch64' else 'x86_64' }}-unknown-linux-gnu"
+        dest: "{{ butane_bin }}"
+        mode: "0755"
+      when: not butane_stat.stat.exists
+
+    - name: Stage the collector script with this run's webhook URL and session UUID substituted
+      copy:
+        src: verify-boot/collect-facts.sh
+        dest: "{{ build_dir }}/collect-facts.sh"
+        mode: "0755"
+
+    - name: Substitute the webhook URL into the staged script
+      replace:
+        path: "{{ build_dir }}/collect-facts.sh"
+        regexp: '__WEBHOOK_URL__'
+        replace: "{{ webhook_url }}"
+
+    - name: Substitute the session UUID into the staged script
+      replace:
+        path: "{{ build_dir }}/collect-facts.sh"
+        regexp: '__SESSION_UUID__'
+        replace: "{{ session_uuid }}"
+
+    - name: Stage the Butane config (no substitution needed - it's fully generic itself; the script it embeds is what's customized)
+      copy:
+        src: verify-boot/verify.bu
+        dest: "{{ build_dir }}/verify.bu"
+        mode: "0644"
+
+    - name: Transpile Butane -> Ignition for this run
+      command:
+        cmd: "{{ butane_bin }} --files-dir {{ build_dir }} --pretty --strict verify.bu"
+        chdir: "{{ build_dir }}"
+      register: butane_out
+      changed_when: true
+
+    - name: Write this run's transpiled Ignition config
+      copy:
+        content: "{{ butane_out.stdout }}"
+        dest: "{{ build_dir }}/verify.ign"
+        mode: "0644"
+
+    - name: Render this host's static NetworkManager keyfile (matched by MAC, not a name)
+      copy:
+        dest: "{{ build_dir }}/verify-static.nmconnection"
+        mode: "0600"
+        content: |
+          [connection]
+          id=verify-static
+          type=ethernet
+
+          [ethernet]
+          mac-address={{ verify_boot_mac }}
+
+          [ipv4]
+          method=manual
+          address1={{ hostvars[target_host]['ip'] }}/{{ network_profile.prefix_length }},{{ gateway }}
+          dns={{ (dns.server | default([])) | join(';') }}{{ ';' if (dns.server | default([])) | length > 0 else '' }}
+
+          [ipv6]
+          method=disabled
+      # No 'interface-name=' line at all - a PRESENT-BUT-EMPTY value here
+      # (what this used to be) may be treated by NetworkManager as a
+      # malformed profile and silently discarded, rather than "unset,
+      # match by MAC instead" the way an omitted key is - this is the
+      # leading suspect for master-00 falling back to DHCP on its real
+      # boots despite this keyfile being embedded correctly. Omitting the
+      # key entirely, rather than leaving it blank, is the documented-
+      # correct way to say "match by MAC only, don't care about the
+      # interface name" - deliberately NOT matching by predicted name
+      # instead (an alternative that would sidestep this ambiguity
+      # entirely), since that's exactly the kind of prediction this whole
+      # tool exists to verify, not assume - a wrong prediction would mean
+      # the static config silently doesn't apply to the right NIC at all.
+      # mode 0600 + this file only ever lives in a root-owned /tmp build
+      # dir, briefly, before being embedded into the ISO and cleaned up -
+      # it's not treated as a secret (a static IP/gateway/DNS isn't
+      # sensitive), just tidy or file permissions defensively either way
+
+    - name: Remove any stale per-host ISO before rebuilding (coreos-installer's -o
+        fails with EEXIST if the destination file already exists - same bug class
+        as manage-verify-iso.yaml's verify.iso, guaranteed to hit on any second run
+        for this same target_host since the output path is deterministic per host)
+      file:
+        path: "{{ per_host_iso_local_path }}"
+        state: absent
+
+    - name: Build a per-host ISO with Ignition + static network in ONE combined customize call
+      command:
+        cmd: >-
+          podman run --rm --pull=missing
+          --security-opt label=disable
+          -v {{ iso_web_root }}:/iso
+          -v {{ build_dir }}:/build
+          quay.io/coreos/coreos-installer:release
+          iso customize --force
+          --live-ignition /build/verify.ign
+          --network-keyfile /build/verify-static.nmconnection
+          -o /iso/{{ rhcos_version }}/{{ arch }}/hosts/{{ target_host }}.iso
+          /iso/{{ rhcos_version }}/{{ arch }}/base-live.iso
+      changed_when: true
+      # Built fresh from base-live.iso every time, NOT layered onto
+      # verify.iso - 'iso customize' is coreos-installer's single
+      # authoritative "configure everything in one pass" command;
+      # running it a second time on an ISO a PRIOR customize call
+      # already touched (even for something unrelated, like network
+      # config here vs Ignition there) is not a documented-safe
+      # composition, and was confirmed on real hardware to silently
+      # clobber the previously-set Ignition config entirely ("Ignition:
+      # no config provided by user" at boot, despite this step itself
+      # succeeding and producing a seemingly-valid ISO). Both pieces
+      # this host's boot actually needs - Ignition and static
+      # networking - go into ONE call instead.
+      # Same --security-opt label=disable reasoning as manage-verify-iso.yaml:
+      # avoids relabeling the whole bind-mounted iso_web_root tree to
+      # container_file_t (which would re-break base-live.iso, verify.iso,
+      # and every other host's derivative sitting in the same directory,
+      # not just this one file).
+
+    - name: Ensure the per-host ISO is world-readable
+      file:
+        path: "{{ per_host_iso_local_path }}"
+        mode: "0644"
+
+    - name: Check whether SELinux tooling is present on this box
+      command: getenforce
+      register: selinux_present
+      changed_when: false
+      failed_when: false
+
+    - name: Reset SELinux context on the per-host ISO to match policy
+      command: "restorecon -RF {{ per_host_iso_local_path }}"
+      when: selinux_present.rc == 0
+      changed_when: true
+
+    - name: "Self-check: confirm the per-host ISO is actually servable over HTTP right now"
+      uri:
+        url: "http://127.0.0.1/coreos-isos/{{ rhcos_version }}/{{ arch }}/hosts/{{ target_host }}.iso"
+        method: HEAD
+        status_code: [200]
+      register: preflight_check
+      failed_when: false
+
+    - name: Fail clearly if the per-host ISO isn't actually servable
+      assert:
+        that:
+          - preflight_check.status == 200
+        fail_msg: >-
+          {{ per_host_iso_local_path }} was built, but
+          http://127.0.0.1/coreos-isos/{{ rhcos_version }}/{{ arch }}/hosts/{{ target_host }}.iso
+          returned status {{ preflight_check.status | default('(no response)') }}
+          from THIS box. See manage-verify-iso.yaml's self-check comment
+          for the likely causes (SELinux, docroot path, Apache not
+          running) - the same reasoning applies here. Note this check
+          passing does NOT guarantee the BMC's own management network
+          can reach {{ per_host_iso_url }} - that's a separate thing to
+          confirm from the BMC's own CLI/racadm if InsertMedia still
+          fails after this.
 
     - name: Eject any currently-mounted virtual media first (idempotency - a previous run's ISO, or a stuck mount, would otherwise block this one)
       uri:
@@ -81,7 +456,39 @@
       register: eject_result
       failed_when: false
 
-    - name: Insert verify.iso as virtual media
+    # A 200/204 from EjectMedia only means the BMC accepted the request,
+    # not that the eject has actually finished - on some firmware this is
+    # asynchronous. Poll the VirtualMedia resource itself until it
+    # genuinely shows Inserted: false before touching InsertMedia, rather
+    # than assuming a fixed delay is enough or none is needed at all.
+    - name: Poll until virtual media is confirmed actually ejected
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Managers/{{ bmc_manager_path }}/VirtualMedia/{{ bmc_virtual_media_id }}"
+        method: GET
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        status_code: [200]
+      register: eject_check
+      until: not (eject_check.json.Inserted | default(true))
+      retries: 12
+      delay: 5
+      failed_when: false  # surfaced as a clear assert below instead of a raw polling-timeout error
+
+    - name: Fail clearly if eject never actually completed
+      assert:
+        that:
+          - not (eject_check.json.Inserted | default(true))
+        fail_msg: >-
+          VirtualMedia still shows Inserted=true after ejecting and
+          polling for up to 60s. The BMC's eject may not have completed,
+          or another process/console session has media locked - check
+          the BMC's web UI directly (Virtual Console / Virtual Media)
+          before retrying, rather than proceeding to mount on top of
+          whatever's already attached.
+
+    - name: Insert this host's per-host verify ISO as virtual media
       uri:
         url: "https://{{ bmc_ip }}/redfish/v1/Managers/{{ bmc_manager_path }}/VirtualMedia/{{ bmc_virtual_media_id }}/Actions/VirtualMedia.InsertMedia"
         method: POST
@@ -91,11 +498,102 @@
         validate_certs: "{{ bmc_validate }}"
         body_format: json
         body:
-          Image: "{{ verify_iso_url }}"
-          Inserted: true
-          WriteProtected: true
+          Image: "{{ per_host_iso_url }}"
         status_code: [200, 204]
+      # Deliberately just {"Image": ...} - no Inserted/WriteProtected.
+      # Those two are DMTF spec DEFAULTS for this action, so they should
+      # be redundant on a fully spec-compliant BMC - but confirmed
+      # directly on real iDRAC8 hardware: the simpler payload is what
+      # actually works reliably there, matching iDRAC8's general pattern
+      # of being less complete/compliant with the newer/richer parts of
+      # the Redfish spec (same class of gap as the NIC/MAC and boot-mode
+      # issues elsewhere in this file). Simplifying universally, not just
+      # for iDRAC8 - dropping fields that only restate spec defaults
+      # shouldn't change behavior on iDRAC9 either.
 
+    # Same reasoning as the eject-confirm above: a 200/204 here only means
+    # the BMC ACCEPTED the request, not that it actually fetched and
+    # mounted the ISO - confirm the VirtualMedia resource genuinely shows
+    # Inserted: true AND the right Image URL before declaring success and
+    # moving on to boot-override/reset.
+    - name: Poll until virtual media is confirmed actually mounted
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Managers/{{ bmc_manager_path }}/VirtualMedia/{{ bmc_virtual_media_id }}"
+        method: GET
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        status_code: [200]
+      register: insert_check
+      until: >-
+        (insert_check.json.Inserted | default(false))
+        and (insert_check.json.Image | default('') == per_host_iso_url)
+      retries: 12
+      delay: 5
+      failed_when: false
+
+    - name: Fail clearly if the mount never actually took
+      assert:
+        that:
+          - insert_check.json.Inserted | default(false)
+          - insert_check.json.Image | default('') == per_host_iso_url
+        fail_msg: >-
+          InsertMedia returned success, but the BMC's own VirtualMedia
+          resource still doesn't show it mounted after polling for up to
+          60s (Inserted={{ insert_check.json.Inserted | default('?') }},
+          Image={{ insert_check.json.Image | default('?') }}). This most
+          commonly means the BMC's OWN management network can't actually
+          reach {{ per_host_iso_url }} - the BMC fetches the ISO directly
+          from its own dedicated interface, completely separate from
+          whatever network this Ansible control node uses, so a curl
+          that succeeds from here does NOT confirm the BMC can reach it
+          too. Confirm that network path specifically before assuming
+          the ISO itself or its permissions are the problem.
+
+    - name: Query the host's actual current power state and boot mode
+      uri:
+        url: "https://{{ bmc_ip }}/redfish/v1/Systems/{{ bmc_system_path }}"
+        method: GET
+        user: "{{ bmc_user }}"
+        password: "{{ bmc_pass }}"
+        force_basic_auth: true
+        validate_certs: "{{ bmc_validate }}"
+        status_code: [200]
+      register: power_check
+
+    # Restate BootSourceOverrideMode explicitly, using whatever this
+    # system's OWN current mode already is (Legacy or UEFI) - confirmed
+    # necessary on real Dell iDRAC8 hardware: the exact same payload we
+    # already send (BootSourceOverrideEnabled: Once, BootSourceOverride
+    # Target: Cd) silently doesn't stick without also restating the mode,
+    # even though the mode itself isn't changing. Deliberately NOT
+    # hardcoding a value (e.g. always 'Legacy') - this toolkit's iDRAC9
+    # systems already work correctly with the mode omitted entirely, and
+    # iDRAC9/most modern hardware boots UEFI, not Legacy; forcing Legacy
+    # unconditionally would likely break those. Reading and echoing back
+    # each system's own current mode is safe either way - if the field
+    # genuinely isn't present at all (a BMC that doesn't report it),
+    # omit it from the PATCH entirely rather than guess one.
+    - name: Build the boot-override body
+      set_fact:
+        boot_override_body: >-
+          {{
+            {'BootSourceOverrideEnabled': 'Once', 'BootSourceOverrideTarget': 'Cd'}
+            | combine(
+                {'BootSourceOverrideMode': power_check.json.Boot.BootSourceOverrideMode}
+                if (power_check.json.Boot.BootSourceOverrideMode | default(None)) is not none
+                else {}
+              )
+          }}
+
+    # Skip the PATCH entirely if a boot-once override is already queued -
+    # confirmed directly on real iDRAC8 hardware: re-sending the PATCH
+    # while one is already pending confuses iDRAC8's own request queue,
+    # separate from whether the payload's VALUES are correct. This
+    # matches a proven working pattern exactly (a hand-written script
+    # that reliably boots this same R630 to virtual media checks this
+    # same condition before patching, and always skips otherwise).
     - name: Set one-time boot override to CD/virtual media
       uri:
         url: "https://{{ bmc_ip }}/redfish/v1/Systems/{{ bmc_system_path }}"
@@ -106,12 +604,27 @@
         validate_certs: "{{ bmc_validate }}"
         body_format: json
         body:
-          Boot:
-            BootSourceOverrideEnabled: Once
-            BootSourceOverrideTarget: Cd
+          Boot: "{{ boot_override_body }}"
         status_code: [200, 204]
+      when: power_check.json.Boot.BootSourceOverrideEnabled != 'Once'
 
-    - name: Power-cycle the host (ForceRestart if already on, else On)
+    - name: Boot override already queued as 'Once' - not re-patching
+      debug:
+        msg: >-
+          Boot.BootSourceOverrideEnabled is already 'Once' on this BMC -
+          skipping the PATCH rather than re-sending it, since doing so
+          on a pending override has caused problems on real iDRAC8
+          hardware. If this ISN'T actually pointed at the right ISO
+          (e.g. a stale override from an earlier failed run), that
+          won't self-correct - check the BMC's own boot settings
+          directly if the wrong thing boots.
+      when: power_check.json.Boot.BootSourceOverrideEnabled == 'Once'
+
+    # Reuses power_check from above - setting the boot-override target/
+    # mode is a config change only, not a power action, so the power
+    # state read moments earlier is still accurate here; no need for a
+    # second GET.
+    - name: "Power-cycle the host (ForceRestart if actually On, else On) - based on the query above, not a guess"
       uri:
         url: "https://{{ bmc_ip }}/redfish/v1/Systems/{{ bmc_system_path }}/Actions/ComputerSystem.Reset"
         method: POST
@@ -121,13 +634,52 @@
         validate_certs: "{{ bmc_validate }}"
         body_format: json
         body:
-          ResetType: "{{ 'ForceRestart' if (power_state_hint | default('On')) == 'On' else 'On' }}"
+          ResetType: "{{ 'ForceRestart' if power_check.json.PowerState == 'On' else 'On' }}"
         status_code: [200, 204]
 
-    - name: Done
+    - name: "{{ target_host }} is booting - waiting for it to report (BIOS POST + boot + network + collect-facts.sh, typically a few minutes)"
       debug:
         msg:
-          - "{{ target_host }} is booting {{ verify_iso_url }}."
-          - "It will report to the webhook and power itself off automatically -"
-          - "nothing further to do here. Check {{ cluster_dir }}/output/verified/<hostname>.yaml"
-          - "once it's done (a few minutes), or the webhook's own log in the meantime."
+          - "Booting {{ per_host_iso_url }}"
+          - "(static IP {{ hostvars[target_host]['ip'] }}/{{ network_profile.prefix_length }} via {{ verify_boot_mac }})"
+
+    # Polls the webhook itself (http://127.0.0.1:{{ verify_webhook_port }}/status/<uuid>
+    # - this playbook runs on the same box as the webhook, same assumption
+    # as the ISO self-checks earlier) rather than only watching the
+    # filesystem for a success report. That file-based approach has a real
+    # gap: it can only ever exist once a payload has been successfully
+    # parsed AND matched to a hostname, and a malformed payload (bad
+    # JSON, truncated body, an unregistered uuid, etc.) never gets that
+    # far, so no per-host file can ever record it, no matter how long
+    # something polls for one. Polling by THIS run's session uuid (rather
+    # than the host's static IP, which gets reused across every
+    # verification run against the same physical box) means a stale
+    # result from an earlier, unrelated attempt can never answer this
+    # poll - confirmed on real hardware to be a genuine problem with
+    # IP-based polling, not a hypothetical one.
+    - name: Poll the webhook for this run's session status (its own record, not just a file on disk)
+      uri:
+        url: "http://127.0.0.1:{{ verify_webhook_port }}/status/{{ session_uuid }}"
+        method: GET
+        status_code: [200]
+      register: verify_status_check
+      until: (verify_status_check.json.state | default('pending')) != 'pending'
+      retries: 90
+      delay: 10   # 90 * 10s = 15 minutes total - generous for BIOS POST + boot +
+                  # collect-facts.sh's own network-wait/retry loop, still bounded
+      failed_when: false
+
+    - name: Show the result
+      debug:
+        var: verify_status_check.json
+      when: (verify_status_check.json.state | default('pending')) != 'pending'
+
+    - name: No result yet - explain what to check, don't just claim success
+      debug:
+        msg:
+          - "No result after 15 minutes of polling - the webhook has no record"
+          - "for this run's session ({{ session_uuid }}) at all yet (not even an error)."
+          - "{{ target_host }} may still be booting, or its network path to the"
+          - "webhook may be broken - check the live console/virtual console, or"
+          - "on the webhook host: journalctl -u verify-webhook -f"
+      when: (verify_status_check.json.state | default('pending')) == 'pending'
