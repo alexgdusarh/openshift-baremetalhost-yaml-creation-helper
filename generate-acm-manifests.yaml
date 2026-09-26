@@ -213,6 +213,17 @@
               .dockerconfigjson: "{{ pull_secret | b64encode }}"
             type: kubernetes.io/dockerconfigjson
 
+          - apiVersion: hive.openshift.io/v1
+            kind: ClusterImageSet
+            metadata:
+              # e.g. ocp_version: 4.20.13 -> openshift-4.20.13
+              name: "openshift-{{ ocp_version }}"
+            spec:
+              # Hardcoded: x86_64 only for now, matching the InfraEnv's
+              # cpuArchitecture below - update both together if/when s390x
+              # or another architecture needs to flow through here.
+              releaseImage: "quay.io/openshift-release-dev/ocp-release:{{ ocp_version }}-x86_64"
+
           - apiVersion: agent-install.openshift.io/v1beta1
             kind: InfraEnv
             metadata:
@@ -280,8 +291,11 @@
                 name: "{{ cluster_name }}"
               holdInstallation: false
               imageSetRef:
-                # e.g. ocp_version: 4.20.13 -> img4.20.13-multi-appsub
-                name: "img{{ ocp_version }}-multi-appsub"
+                # Points at the ClusterImageSet generated above, rather than
+                # relying on ACM's auto-synced 'img<version>-multi-appsub'
+                # catalog (which only covers whatever versions/architectures
+                # that subscription has synced so far).
+                name: "openshift-{{ ocp_version }}"
               networking:
                 networkType: OVNKubernetes
                 clusterNetwork:
