@@ -78,7 +78,7 @@ all:
       # string (works the same whether set here or per-host).
       vars:
         bmc_username: CHANGE_ME
-        bmc_password: "CHANGE_ME"
+        bmc_password: CHANGE_ME
         # Almost every BMC ships a self-signed cert. Set true if you've
         # loaded a real CA cert into your BMCs and want it verified.
         bmc_validate_certs: false
