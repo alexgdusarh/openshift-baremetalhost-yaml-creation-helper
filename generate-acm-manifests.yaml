@@ -299,18 +299,33 @@
               networking:
                 networkType: OVNKubernetes
                 clusterNetwork:
-                  - cidr: "{{ cluster_network_cidr | default('10.128.0.0/14') }}"
-                    hostPrefix: "{{ cluster_network_host_prefix | default(23) }}"
+                  # A quoted "{{ expr }}" string always renders to a
+                  # Python str, so hostPrefix would otherwise come out
+                  # quoted even though it's numeric - the installer
+                  # expects a real int. Building this item as ONE
+                  # native Jinja expression (no YAML-string round-trip)
+                  # keeps hostPrefix's real int type.
+                  - >-
+                    {{ {
+                      'cidr': cluster_network_cidr | default('10.128.0.0/14'),
+                      'hostPrefix': cluster_network_host_prefix | default(23) | int
+                    } }}
                 serviceNetwork:
                   - "{{ service_network_cidr | default('172.30.0.0/16') }}"
                 userManagedNetworking: false
                 machineNetwork:
                   - cidr: "{{ machine_network_cidr }}"
               platformType: BareMetal
-              provisionRequirements:
-                controlPlaneAgents: "{{ groups.get('masters', []) | length }}"
-                workerAgents: "{{ groups.get('workers', []) | length }}"
-                arbiterAgents: 0
+              # Same quoted-string-always-renders-to-str issue as
+              # clusterNetwork.hostPrefix above - controlPlaneAgents/
+              # workerAgents are numeric and the installer expects real
+              # ints, so this is built as ONE native Jinja expression.
+              provisionRequirements: >-
+                {{ {
+                  'controlPlaneAgents': groups.get('masters', []) | length,
+                  'workerAgents': groups.get('workers', []) | length,
+                  'arbiterAgents': 0
+                } }}
               sshPublicKey: "{{ ssh_key }}"
               apiVIP: "{{ api_vips[0] }}"
               apiVIPs: "{{ api_vips }}"

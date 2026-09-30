@@ -256,6 +256,26 @@
           pullSecret: "{{ pull_secret }}"
           sshKey: "{{ ssh_key }}"
 
+    # Rendering a quoted "{{ expr }}" string always yields a Python str
+    # (Jinja always renders to text; Ansible doesn't preserve native
+    # types here outside jinja2_native), so replicas/hostPrefix above
+    # come out as strings even though they're numeric - the installer
+    # expects real YAML integers for both. Recomputing them as ONE
+    # native Jinja expression (no YAML-string round-trip) keeps the
+    # real int type.
+    - name: Fix replicas/hostPrefix back to real integers
+      set_fact:
+        install_config: >-
+          {{
+            install_config | combine({
+              'compute': [install_config.compute[0] | combine({'replicas': groups.get('workers', []) | length})],
+              'controlPlane': install_config.controlPlane | combine({'replicas': groups.get('masters', []) | length}),
+              'networking': install_config.networking | combine({
+                'clusterNetwork': [install_config.networking.clusterNetwork[0] | combine({'hostPrefix': cluster_network_host_prefix | default(23) | int})]
+              })
+            }, recursive=True)
+          }}
+
     - name: Write install-config.yaml
       copy:
         dest: "{{ cluster_dir }}/output/install-config.yaml"
