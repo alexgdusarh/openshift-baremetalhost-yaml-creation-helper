@@ -1,0 +1,488 @@
+apply_changes: true
+openshift_version: 4.18.14
+openshift_cluster_name: xyx-na-69
+openshift_cluster_base_domain: sample.local
+gm_default_nameservers:
+  - 148.93.51.11
+  - 130.170.159.109
+openshift_bastion_host_fqdn: testbas004.sample.local
+openshift_bastion_host_ip_address: 10.11.191.0
+openshift_bastion_bmc_ip_address: 10.11.252.240
+openshift_machine_network_vlanid: 2398
+openshift_machine_network_cidr: 23
+openshift_machine_network_subnet:
+  - 10.11.190.0/23
+  - 10.120.200.0/22
+  - 10.11.252.0/24
+  - 10.11.188.0/24
+openshift_host_prefix: 23
+openshift_cluster_network_subnet: 10.224.0.0
+openshift_cluster_network_cidr: 16
+openshift_service_network_subnet: 172.25.0.0
+openshift_service_network_cidr: 16
+API_VIP: 10.120.201.226
+APP_VIP: 10.120.201.226
+BOOTSTRAP_STATIC_IP: 10.11.190.251
+BOOTSTRAP_GW: 10.11.190.1
+BOOTSTRAP_DNS: 148.93.51.11
+primary_nic: eno12399np0
+secondary_nic: ens2f0np0
+bond_name: bond0
+bond_mode: 802.3ad
+mtu: 9000
+openshift_idrac_subnet: 10.11.252.0/24,10.205.188.0/24
+generate_iso_host_netmask: 255.255.254.0
+generate_iso_host_gateway: 10.11.190.1
+generate_iso_mkisofs_url: 148.93.119.65
+os_installation_iso_url: 148.93.119.65
+bare_metal_provision_host_use_vlan_tagging: true
+vlans_list:
+  - 10
+  - 11
+  - 18
+  - 31
+  - 35
+  - 36
+  - 37
+  - 38
+  - 39
+  - 40
+  - 60
+  - 64
+  - 82
+  - 87
+  - 88
+  - 91
+  - 93
+  - 94
+  - 134
+  - 136
+  - 223
+  - 230
+  - 234
+  - 294
+  - 403
+  - 408
+  - 409
+  - 411
+  - 412
+  - 414
+  - 416
+  - 428
+  - 429
+  - 433
+  - 472
+  - 473
+  - 517
+  - 518
+  - 525
+  - 526
+  - 527
+  - 535
+  - 551
+  - 552
+  - 553
+  - 651
+  - 652
+  - 653
+  - 702
+  - 705
+  - 706
+  - 800
+  - 911
+  - 914
+  - 951
+  - 1005
+  - 1006
+  - 1011
+  - 1012
+  - 1016
+  - 1017
+  - 1027
+  - 1040
+  - 1056
+  - 1063
+  - 1073
+  - 1074
+  - 1075
+  - 1077
+  - 1078
+  - 1080
+  - 1081
+  - 1082
+  - 1083
+  - 1084
+  - 1085
+  - 1086
+  - 1087
+  - 1088
+  - 1089
+  - 1090
+  - 1092
+  - 1122
+  - 1124
+  - 1125
+  - 1127
+  - 1129
+  - 1131
+  - 1132
+  - 1133
+  - 1134
+  - 1135
+  - 1136
+  - 1139
+  - 1159
+  - 1161
+  - 1164
+  - 1170
+  - 1173
+  - 1189
+  - 1190
+  - 1191
+  - 1216
+  - 1240
+  - 1243
+  - 1411
+  - 1412
+  - 1414
+  - 1416
+  - 1417
+  - 1419
+  - 1420
+  - 1426
+  - 1466
+  - 1473
+  - 1605
+  - 1701
+  - 1702
+  - 1704
+  - 1705
+  - 1706
+  - 1707
+  - 1708
+  - 1710
+  - 1714
+  - 1715
+  - 1716
+  - 1717
+  - 1733
+  - 1735
+  - 1736
+  - 1742
+  - 1743
+  - 1744
+  - 1746
+  - 1787
+  - 1800
+  - 1814
+  - 1815
+  - 1816
+  - 1817
+  - 1962
+  - 2101
+  - 2102
+  - 2108
+  - 2109
+  - 2114
+  - 2115
+  - 2117
+  - 2118
+  - 2135
+  - 2136
+  - 2137
+  - 2146
+  - 2148
+  - 2150
+  - 2161
+  - 2167
+  - 2172
+  - 2173
+  - 2174
+  - 2186
+  - 2190
+  - 2192
+  - 2193
+  - 2195
+  - 2196
+  - 2197
+  - 2199
+  - 2201
+  - 2202
+  - 2353
+  - 2401
+  - 2402
+  - 2403
+  - 2408
+  - 2424
+  - 2437
+  - 2453
+  - 2696
+  - 2710
+  - 2717
+  - 2719
+  - 2720
+  - 2722
+  - 2724
+  - 2725
+  - 2727
+  - 2745
+  - 2746
+  - 2751
+  - 2752
+  - 2757
+  - 2759
+  - 2770
+  - 2998
+  - 2999
+  - 3351
+  - 3352
+  - 3355
+openshift_cluster_provision_params:
+  - node_host_ip_address: 10.11.190.11
+    node_host_fqdn: test61-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.179
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.12
+    node_host_fqdn: test62-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.180
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.13
+    node_host_fqdn: test63-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.181
+    node_host_network_cidr: 23
+workers:
+  - node_host_ip_address: 10.11.190.14
+    node_host_fqdn: test64-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.182
+    node_mac_address: 56:70:BC:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.15
+    node_host_fqdn: test65-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.183
+    node_mac_address: 8E:70:50:10:43:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.16
+    node_host_fqdn: test66-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.184
+    node_mac_address: D4:70:04:10:14:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.17
+    node_host_fqdn: test67-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.185
+    node_mac_address: D4:70:EC:10:13:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.18
+    node_host_fqdn: test68-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.186
+    node_mac_address: D4:70:C4:10:14:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.19
+    node_host_fqdn: test69-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.187
+    node_mac_address: D4:70:D4:10:14:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.20
+    node_host_fqdn: test70-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.188
+    node_mac_address: D4:70:24:10:18:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.21
+    node_host_fqdn: test71-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.189
+    node_mac_address: 8E:70:68:10:55:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.22
+    node_host_fqdn: test72-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.190
+    node_mac_address: D4:70:9C:10:14:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.107
+    node_host_fqdn: test73-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.191
+    node_mac_address: 56:70:B4:10:47:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.108
+    node_host_fqdn: test74-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.192
+    node_mac_address: 56:70:4C:10:46:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.109
+    node_host_fqdn: test75-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.193
+    node_mac_address: 56:70:AC:10:6F:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.110
+    node_host_fqdn: test76-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.194
+    node_mac_address: 56:70:FC:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.111
+    node_host_fqdn: test77-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.195
+    node_mac_address: 56:70:3C:10:69:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.112
+    node_host_fqdn: test78-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.196
+    node_mac_address: 56:70:6C:10:69:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.113
+    node_host_fqdn: test79-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.197
+    node_mac_address: 56:70:C4:10:6F:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.114
+    node_host_fqdn: test80-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.198
+    node_mac_address: 56:70:34:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.115
+    node_host_fqdn: test81-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.199
+    node_mac_address: 56:70:4C:10:6E:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.116
+    node_host_fqdn: test82-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.200
+    node_mac_address: 56:70:8C:10:BF:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.117
+    node_host_fqdn: test83-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.201
+    node_mac_address: 56:70:D4:10:67:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.118
+    node_host_fqdn: test84-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.202
+    node_mac_address: 56:70:B4:10:6F:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.119
+    node_host_fqdn: test85-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.251
+    node_mac_address: 56:70:1C:10:BF:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.120
+    node_host_fqdn: test86-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.252
+    node_mac_address: 8E:70:58:10:43:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.121
+    node_host_fqdn: test87-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.253
+    node_mac_address: D4:70:C4:10:15:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.122
+    node_host_fqdn: test88-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.254
+    node_mac_address: 8E:70:38:10:43:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.123
+    node_host_fqdn: test89-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.11
+    node_mac_address: 56:70:AC:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.124
+    node_host_fqdn: test90-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.12
+    node_mac_address: 56:70:DC:10:C1:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.125
+    node_host_fqdn: test91-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.13
+    node_mac_address: 56:70:54:10:75:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.126
+    node_host_fqdn: test92-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.14
+    node_mac_address: 56:70:4C:10:75:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.127
+    node_host_fqdn: test93-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.15
+    node_mac_address: 56:70:1C:10:75:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.128
+    node_host_fqdn: test94-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.16
+    node_mac_address: 56:70:0C:10:44:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.129
+    node_host_fqdn: test95-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.17
+    node_mac_address: 56:70:74:10:AC:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.130
+    node_host_fqdn: test96-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.18
+    node_mac_address: 56:70:FC:10:76:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.131
+    node_host_fqdn: test97-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.19
+    node_mac_address: 20:EB:8A:E8:0B:D3
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.132
+    node_host_fqdn: test98-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.20
+    node_mac_address: 20:EB:62:E8:0B:D3
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.133
+    node_host_fqdn: test99-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.21
+    node_mac_address: 20:EB:32:E8:0C:D3
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.134
+    node_host_fqdn: testv400-gpu.sample.local
+    node_bmc_ip_address: 10.11.188.22
+    node_mac_address: 20:EB:3A:E8:0A:D3
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.49
+    node_host_fqdn: testv421-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.229
+    node_mac_address: 56:70:7C:10:A5:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.50
+    node_host_fqdn: testv422-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.230
+    node_mac_address: 56:70:9C:10:AD:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.51
+    node_host_fqdn: testv423-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.231
+    node_mac_address: 56:70:2C:10:69:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.52
+    node_host_fqdn: testv424-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.232
+    node_mac_address: 56:70:E4:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.53
+    node_host_fqdn: testv425-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.233
+    node_mac_address: 56:70:14:10:69:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.54
+    node_host_fqdn: testv426-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.234
+    node_mac_address: 56:70:24:10:C4:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.55
+    node_host_fqdn: testv427-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.235
+    node_mac_address: 56:70:44:10:69:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.56
+    node_host_fqdn: testv428-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.236
+    node_mac_address: 56:70:1C:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.57
+    node_host_fqdn: testv429-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.237
+    node_mac_address: 56:70:EC:10:68:FD
+    node_host_network_cidr: 23
+  - node_host_ip_address: 10.11.190.58
+    node_host_fqdn: testv430-gpu.sample.local
+    node_bmc_ip_address: 10.11.252.238
+    node_mac_address: 56:70:8C:10:6E:FD
+    node_host_network_cidr: 23

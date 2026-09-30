@@ -1,0 +1,31 @@
+cluster_name: xyx-na-69
+base_domain: sample.local
+rendezvous_ip: 10.11.190.11
+additional_ntp_sources:
+- pool.ntp.org
+gateway: 10.11.190.1
+route_table_id: 254
+dns:
+  server:
+  - 148.93.51.11
+  - 130.170.159.109
+  search:
+  - xyx-na-69.sample.local
+network_profile:
+  type: bond
+  mtu: 9000
+  vlan_id: 2398
+  prefix_length: 23
+  name: bond0
+  link_aggregation:
+    mode: 802.3ad
+machine_network:
+  cidr: 10.11.190.0/23
+api_vips:
+- 10.120.201.226
+ingress_vips:
+- 10.120.201.226
+load_balancer_type: OpenShiftManagedDefault
+pull_secret: CHANGE_ME - paste your pull secret JSON here as a single-quoted string
+ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key
+ocp_version: 4.18.14

@@ -1,0 +1,512 @@
+all:
+  children:
+    bmc_hosts:
+      vars:
+        bmc_username: CHANGE_ME
+        bmc_password: CHANGE_ME
+        bmc_validate_certs: false
+      children:
+        masters:
+          hosts:
+            test61-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.179
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.11
+            test62-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.180
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.12
+            test63-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.181
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.13
+        workers:
+          hosts:
+            test64-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.182
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.14
+            test65-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.183
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.15
+            test66-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.184
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.16
+            test67-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.185
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.17
+            test68-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.186
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.18
+            test69-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.187
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.19
+            test70-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.188
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.20
+            test71-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.189
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.21
+            test72-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.190
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.22
+            test73-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.191
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.107
+            test74-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.192
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.108
+            test75-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.193
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.109
+            test76-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.194
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.110
+            test77-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.195
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.111
+            test78-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.196
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.112
+            test79-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.197
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.113
+            test80-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.198
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.114
+            test81-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.199
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.115
+            test82-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.200
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.116
+            test83-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.201
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.117
+            test84-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.202
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.118
+            test85-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.251
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.119
+            test86-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.252
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.120
+            test87-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.253
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.121
+            test88-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.254
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.122
+            test89-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.11
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.123
+            test90-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.12
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.124
+            test91-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.13
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.125
+            test92-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.14
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.126
+            test93-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.15
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.127
+            test94-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.16
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.128
+            test95-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.17
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.129
+            test96-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.18
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.130
+            test97-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.19
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.131
+            test98-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.20
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.132
+            test99-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.21
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.133
+            testv400-gpu.sample.local:
+              bmc_ip_hostname: 10.11.188.22
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.134
+            testv421-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.229
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.49
+            testv422-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.230
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.50
+            testv423-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.231
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.51
+            testv424-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.232
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.52
+            testv425-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.233
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.53
+            testv426-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.234
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.54
+            testv427-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.235
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.55
+            testv428-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.236
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.56
+            testv429-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.237
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.57
+            testv430-gpu.sample.local:
+              bmc_ip_hostname: 10.11.252.238
+              network_members:
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: eno12399np0
+              - adapter_id: CHANGE_ME
+                port: CHANGE_ME
+                name: ens2f0np0
+              ip: 10.11.190.58
