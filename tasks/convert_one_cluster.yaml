@@ -1,0 +1,196 @@
+---
+# tasks/convert_one_cluster.yaml
+#
+# One iteration of convert-clusters.yaml's loop: converts a single
+# clusters/convert/<name>.yaml legacy cluster file into
+# clusters/<name>/{inventory/hosts.yaml,vars/cluster.yaml}. `legacy_file`
+# (the full path to that legacy file) is set by the calling loop in
+# convert-clusters.yaml.
+#
+# Reset first: this file is include_tasks'd once per legacy file, and
+# set_fact facts persist across the whole play - without resetting these
+# here, host entries from a PREVIOUS cluster's conversion would leak
+# into this one via the |combine() accumulation below.
+- name: Reset per-cluster accumulator facts
+  set_fact:
+    hosts_masters: {}
+    hosts_workers: {}
+
+- name: Load this legacy cluster file
+  set_fact:
+    legacy: "{{ lookup('file', legacy_file) | from_yaml }}"
+    cluster_slug: "{{ legacy_file | basename | regex_replace('\\.ya?ml$', '') }}"
+
+- name: Set this cluster's target directory
+  set_fact:
+    this_cluster_dir: "clusters/{{ cluster_slug }}"
+
+- name: Pull out the masters/workers node lists
+  set_fact:
+    convert_masters: "{{ legacy.openshift_cluster_provision_params | default([]) }}"
+    convert_workers: "{{ legacy.workers | default([]) }}"
+
+- name: Fail early if there's nothing to convert into masters/workers
+  assert:
+    that:
+      - (convert_masters | length) > 0
+    fail_msg: >-
+      {{ legacy_file }} has no openshift_cluster_provision_params entries -
+      nothing to map to the masters group.
+
+- name: Determine bond-vs-ethernet (bond only when a secondary_nic is given)
+  set_fact:
+    convert_network_type: "{{ 'bond' if (legacy.secondary_nic | default('') | length > 0) else 'ethernet' }}"
+
+# hosts.yaml needs adapter_id + port per member so it can correlate
+# against output/hw_inventory.yaml (Redfish-discovered ports) - the
+# legacy format only ever gave interface NAMES (primary_nic/
+# secondary_nic), never Redfish adapter_id/port slot identifiers. Using
+# the 'name:' override (see clusters/ocp-lab-kvm/inventory/hosts.yaml)
+# with adapter_id/port left as CHANGE_ME placeholders - run playbook.yaml
+# (Redfish discovery) against the new cluster and fill these in from its
+# output/hw_inventory.yaml before relying on this inventory.
+- name: Build this cluster's shared network_members list (same NICs on every host)
+  set_fact:
+    convert_network_members: >-
+      {{
+        [{'adapter_id': 'CHANGE_ME', 'port': 'CHANGE_ME', 'name': legacy.primary_nic}]
+        + ([{'adapter_id': 'CHANGE_ME', 'port': 'CHANGE_ME', 'name': legacy.secondary_nic}]
+           if convert_network_type == 'bond' else [])
+      }}
+
+- name: Determine the machine-network CIDR (the legacy subnet entry matching the given prefix length)
+  set_fact:
+    derived_machine_network_cidr: >-
+      {{
+        (legacy.openshift_machine_network_subnet | default([])
+         | select('match', '.*/' ~ (legacy.openshift_machine_network_cidr | string) ~ '$')
+         | list)[0]
+        | default('CHANGE_ME')
+      }}
+
+- name: Build masters host entries, keyed by FQDN
+  set_fact:
+    hosts_masters: >-
+      {{
+        hosts_masters | combine({
+          node.node_host_fqdn: {
+            'bmc_ip_hostname': node.node_bmc_ip_address,
+            'network_members': convert_network_members,
+            'ip': node.node_host_ip_address
+          }
+        })
+      }}
+  loop: "{{ convert_masters }}"
+  loop_control:
+    loop_var: node
+
+- name: Build workers host entries, keyed by FQDN
+  set_fact:
+    hosts_workers: >-
+      {{
+        hosts_workers | combine({
+          node.node_host_fqdn: {
+            'bmc_ip_hostname': node.node_bmc_ip_address,
+            'network_members': convert_network_members,
+            'ip': node.node_host_ip_address
+          }
+        })
+      }}
+  loop: "{{ convert_workers }}"
+  loop_control:
+    loop_var: node
+
+- name: Assemble inventory/hosts.yaml document
+  set_fact:
+    inventory_doc:
+      all:
+        children:
+          bmc_hosts:
+            # Legacy files never carried BMC credentials - fill these in
+            # for real before running playbook.yaml against this cluster.
+            vars:
+              bmc_username: CHANGE_ME
+              bmc_password: CHANGE_ME
+              bmc_validate_certs: false
+            children:
+              masters:
+                hosts: "{{ hosts_masters }}"
+              workers:
+                hosts: "{{ hosts_workers }}"
+
+- name: Assemble network_profile for vars/cluster.yaml
+  set_fact:
+    convert_network_profile: >-
+      {{
+        {
+          'type': convert_network_type,
+          'mtu': legacy.mtu,
+          'vlan_id': legacy.openshift_machine_network_vlanid | default(none),
+          'prefix_length': legacy.openshift_machine_network_cidr
+        } | combine(
+          {'name': legacy.bond_name, 'link_aggregation': {'mode': legacy.bond_mode}}
+          if convert_network_type == 'bond' else {}
+        )
+      }}
+
+- name: Assemble vars/cluster.yaml document
+  set_fact:
+    cluster_vars_doc:
+      cluster_name: "{{ legacy.openshift_cluster_name }}"
+      base_domain: "{{ legacy.openshift_cluster_base_domain }}"
+      rendezvous_ip: "{{ convert_masters[0].node_host_ip_address }}"
+      additional_ntp_sources:
+        - pool.ntp.org
+      # Legacy files have no dedicated cluster-wide gateway field - the
+      # only IP-network gateway present is BOOTSTRAP_GW, reused here.
+      # Verify this is really the OS-node default gateway, not something
+      # bootstrap-specific, before using it.
+      gateway: "{{ legacy.BOOTSTRAP_GW | default('CHANGE_ME') }}"
+      route_table_id: 254
+      dns:
+        server: "{{ legacy.gm_default_nameservers | default(['CHANGE_ME']) }}"
+        search:
+          - "{{ legacy.openshift_cluster_name }}.{{ legacy.openshift_cluster_base_domain }}"
+      network_profile: "{{ convert_network_profile }}"
+      # Nested dict, not this repo's existing flat machine_network_cidr
+      # string - intentional, scoped to clusters produced by this
+      # playbook (see convert-clusters.yaml's header comment).
+      machine_network:
+        cidr: "{{ derived_machine_network_cidr }}"
+      api_vips:
+        - "{{ legacy.API_VIP }}"
+      ingress_vips:
+        - "{{ legacy.APP_VIP }}"
+      load_balancer_type: OpenShiftManagedDefault
+      # Never present in the legacy format - fill these in for real
+      # before running generate-agent-config.yaml against this cluster.
+      pull_secret: 'CHANGE_ME - paste your pull secret JSON here as a single-quoted string'
+      ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key"
+      ocp_version: "{{ legacy.openshift_version }}"
+
+- name: Ensure target directories exist
+  file:
+    path: "{{ this_cluster_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - inventory
+    - vars
+
+- name: Write inventory/hosts.yaml
+  copy:
+    dest: "{{ this_cluster_dir }}/inventory/hosts.yaml"
+    content: "{{ inventory_doc | to_nice_yaml(indent=2, width=120, sort_keys=False) }}"
+
+- name: Write vars/cluster.yaml
+  copy:
+    dest: "{{ this_cluster_dir }}/vars/cluster.yaml"
+    content: "{{ cluster_vars_doc | to_nice_yaml(indent=2, width=120, sort_keys=False) }}"
+
+- name: Report conversion result
+  debug:
+    msg: >-
+      Converted {{ legacy_file }} -> {{ this_cluster_dir }}/{inventory/hosts.yaml,vars/cluster.yaml}
+      - review every CHANGE_ME placeholder (BMC creds, network_members
+      adapter_id/port, pull_secret, ssh_key) before using this cluster.

@@ -845,6 +845,8 @@ redfish-hw-inventory/
 ├── playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)
 ├── generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)
 ├── generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)
+├── convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/
+├── tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic
 ├── manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see "Verifying predictions..."
 ├── mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it
 ├── deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port
@@ -860,6 +862,8 @@ redfish-hw-inventory/
 ├── tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]
 ├── README.adf.json                         # this README, pre-converted to ADF
 └── clusters/
+    ├── convert/                     # legacy-format cluster files awaiting convert-clusters.yaml
+    │   └── test.yaml
     ├── ocp-lab/                     # example: real hardware, bonded network
     │   ├── inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups
     │   ├── vars/

@@ -1,0 +1,73 @@
+---
+# convert-clusters.yaml
+#
+# Independent, one-off migration playbook - not part of the
+# discover -> agent-config -> acm-manifests pipeline (playbook.yaml /
+# generate-agent-config.yaml / generate-acm-manifests.yaml).
+#
+# Reads every clusters/convert/<name>.yaml legacy-format cluster
+# definition (one bespoke, flat var file per cluster from older
+# tooling) and converts it into this repo's own
+# clusters/<name>/{inventory/hosts.yaml,vars/cluster.yaml} layout - see
+# clusters/ocp-lab/{inventory/hosts.yaml,vars/cluster.yaml} for the
+# target schema each converted cluster follows. Files are read and
+# converted one at a time, in sequence.
+#
+# Usage:
+#   ansible-playbook convert-clusters.yaml
+#
+# Only fields this repo's schema actually uses are carried over. Legacy
+# fields with no home here - bootstrap-only IPs, ISO/PXE generation
+# settings, the switch VLAN trunk list, cluster/service network sizing,
+# worker MAC addresses (network_members supplies MACs instead, resolved
+# later from output/hw_inventory.yaml), the bastion host, ... - are
+# intentionally dropped. See tasks/convert_one_cluster.yaml for the
+# exact field-by-field mapping.
+#
+# What can NOT be derived from the legacy format and needs manual
+# follow-up on every converted cluster before it's usable:
+#   - inventory/hosts.yaml: bmc_username/bmc_password (bmc_hosts group
+#     vars) - legacy files never carried BMC credentials.
+#   - inventory/hosts.yaml: every host's network_members adapter_id/port
+#     - the legacy format only gives interface NAMES (primary_nic/
+#     secondary_nic), not the Redfish adapter_id/port slot identifiers
+#     hosts.yaml needs to correlate against output/hw_inventory.yaml.
+#     Written here using the 'name:' override (like the sushy-tools
+#     example) with adapter_id/port left as CHANGE_ME placeholders - run
+#     playbook.yaml (Redfish discovery) against the new cluster and fill
+#     these in from its output/hw_inventory.yaml.
+#   - vars/cluster.yaml: pull_secret, ssh_key - never in the legacy
+#     format either.
+#
+# vars/cluster.yaml's machine_network is written as a nested dict
+# ({cidr: <value>}) here, NOT this repo's existing flat
+# machine_network_cidr string. That's a deliberate schema change scoped
+# only to clusters this playbook produces - generate-agent-config.yaml
+# and generate-acm-manifests.yaml still read the old flat
+# machine_network_cidr and have NOT been updated to match, so a cluster
+# converted here cannot be run through those two playbooks unmodified.
+
+- name: Find legacy cluster files to convert
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    convert_dir: clusters/convert
+  tasks:
+    - name: Look for clusters/convert/*.yaml|*.yml
+      find:
+        paths: "{{ convert_dir }}"
+        patterns: ["*.yaml", "*.yml"]
+      register: convert_files
+
+    - name: Nothing to convert
+      debug:
+        msg: "No files found in {{ convert_dir }} - nothing to do."
+      when: convert_files.files | length == 0
+
+    - name: Convert each legacy cluster file, one at a time
+      include_tasks: tasks/convert_one_cluster.yaml
+      loop: "{{ convert_files.files | map(attribute='path') | sort }}"
+      loop_control:
+        loop_var: legacy_file
+      when: convert_files.files | length > 0
