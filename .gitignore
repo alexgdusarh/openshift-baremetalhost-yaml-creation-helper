@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Ansible
+*.retry
+ansible.log
+.ansible/
+vault_pass.txt
+.vault_pass
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+*.7z
+*.rar
+
+# ISO images built by manage-verify-iso.yaml / mount-verify-media.yaml
+*.iso
+
+# Backups / temp / runtime files
+*.bak
+*.bak.*
+*.orig
+*.tmp
+*.temp
+*~
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
