@@ -80,11 +80,15 @@ master-01:
       mac_address: 6C:3C:8C:66:60:35
       port_number: 1
       predicted_linux_ifname: eno1
+      verified: true
+      verified_at: '2026-09-29T20:56:53Z'
     - devlink_port_name_guessed: false
       link_status: LinkDown
       mac_address: 6C:3C:8C:66:60:36
       port_number: 2
       predicted_linux_ifname: eno2
+      verified: true
+      verified_at: '2026-09-29T20:56:53Z'
     serial_number: null
   storage:
     controllers:
