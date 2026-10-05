@@ -18,14 +18,17 @@ the README changes. Re-run this script any time README.md is edited:
 Supported markdown, matching what README.md actually uses:
   - headings (#, ##, ###, ...)
   - paragraphs, with inline **bold**, `code`, and [text](url) links
-  - fenced code blocks (```lang ... ```)
+  - fenced code blocks (```lang ... ```), including nested under a list item
   - GitHub-style pipe tables (first row = header, second row = separator)
-  - bullet lists (- item)
+  - bullet lists (- item) and numbered lists (1. item), both with
+    wrapped continuation lines joined into one paragraph
+  - nested bullet sub-lists (more deeply indented than their parent item)
   - horizontal rules (--- on its own line)
 
-Anything else (nested lists, numbered lists, images, blockquotes) isn't
-used in README.md and isn't handled - extend INLINE_PATTERN / the block
-parser below if a future README needs one of those.
+Anything else (numbered sub-lists nested inside a bullet item or vice
+versa, images, blockquotes) isn't used in README.md and isn't handled -
+extend INLINE_PATTERN / the block parser below if a future README needs
+one of those.
 """
 
 import json
@@ -103,6 +106,78 @@ def parse_table(lines):
     }
 
 
+def parse_bullet_list(lines, i, n):
+    """Parse a bullet list starting at lines[i] (already known to match
+    the bullet pattern). Returns (bulletList_node, next_i).
+
+    A sibling item is a line at the SAME indentation as the first one;
+    anything more deeply indented is the current item's content: a
+    wrapped continuation line (joined into its paragraph, same as a
+    numbered item's continuation), a nested fenced code block, or a
+    nested sub bullet-list (recursion), matching what README.md
+    actually does under e.g. "mount-verify-media.yaml"'s bullet.
+    """
+    indent = len(lines[i]) - len(lines[i].lstrip())
+    items = []
+    while i < n and re.match(r'^[-*]\s+', lines[i].strip()) \
+            and len(lines[i]) - len(lines[i].lstrip()) == indent:
+        item_text = re.sub(r'^[-*]\s+', '', lines[i].strip())
+        i += 1
+        item_content = []
+        para_lines = [item_text] if item_text else []
+
+        def flush():
+            if para_lines:
+                p = paragraph(' '.join(para_lines))
+                if p:
+                    item_content.append(p)
+                para_lines.clear()
+
+        while i < n:
+            if not lines[i].strip():
+                # Blank line: a "loose" item (like webhook/verify_webhook.py's
+                # bullet) can have a second paragraph - or its nested
+                # sub-list - after one. Peek past it; only treat the blank
+                # line as ending the item if what follows has dedented back
+                # out of it.
+                j = i
+                while j < n and not lines[j].strip():
+                    j += 1
+                if j >= n or len(lines[j]) - len(lines[j].lstrip()) <= indent:
+                    break
+                flush()
+                i = j
+                continue
+            cur_indent = len(lines[i]) - len(lines[i].lstrip())
+            cur_stripped = lines[i].strip()
+            if cur_indent <= indent:
+                break  # sibling item (or an enclosing/outer block) - done
+            if re.match(r'^[-*]\s+', cur_stripped):
+                flush()
+                nested, i = parse_bullet_list(lines, i, n)
+                item_content.append(nested)
+                continue
+            if cur_stripped.startswith('```'):
+                flush()
+                lang = cur_stripped[3:].strip() or None
+                i += 1
+                code_lines = []
+                while i < n and not lines[i].strip().startswith('```'):
+                    code_lines.append(lines[i].strip())
+                    i += 1
+                i += 1
+                node = {'type': 'codeBlock', 'content': [{'type': 'text', 'text': '\n'.join(code_lines)}]}
+                if lang:
+                    node['attrs'] = {'language': lang}
+                item_content.append(node)
+                continue
+            para_lines.append(cur_stripped)
+            i += 1
+        flush()
+        items.append({'type': 'listItem', 'content': item_content or [{'type': 'paragraph', 'content': []}]})
+    return {'type': 'bulletList', 'content': items}, i
+
+
 def convert(markdown_text):
     lines = markdown_text.split('\n')
     content = []
@@ -160,12 +235,8 @@ def convert(markdown_text):
 
         # bullet list
         if re.match(r'^[-*]\s+', line.strip()):
-            items = []
-            while i < n and re.match(r'^[-*]\s+', lines[i].strip()):
-                item_text = re.sub(r'^[-*]\s+', '', lines[i].strip())
-                items.append({'type': 'listItem', 'content': [paragraph(item_text)]})
-                i += 1
-            content.append({'type': 'bulletList', 'content': items})
+            node, i = parse_bullet_list(lines, i, n)
+            content.append(node)
             continue
 
         # numbered list (e.g. "1. Edit ..." in Setup steps)

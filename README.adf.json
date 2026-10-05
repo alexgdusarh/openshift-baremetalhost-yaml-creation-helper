@@ -100,65 +100,51 @@
                 },
                 {
                   "type": "text",
-                  "text": " \u2014 every NIC, its PCI slot, port count, MAC per port,"
+                  "text": " \u2014 every NIC, its PCI slot, port count, MAC per port, and a "
+                },
+                {
+                  "type": "text",
+                  "text": "predicted",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " Linux interface name ("
+                },
+                {
+                  "type": "text",
+                  "text": "eno1",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "ens2f1",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", ...)"
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "and a "
         },
-        {
-          "type": "text",
-          "text": "predicted",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " Linux interface name ("
-        },
-        {
-          "type": "text",
-          "text": "eno1",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", "
-        },
-        {
-          "type": "text",
-          "text": "ens2f1",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", ...)"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -176,59 +162,50 @@
                 },
                 {
                   "type": "text",
-                  "text": " \u2014 every storage controller, physical drive, and virtual disk,"
+                  "text": " \u2014 every storage controller, physical drive, and virtual disk, with a "
+                },
+                {
+                  "type": "text",
+                  "text": "predicted",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "/dev/disk/by-path/...",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " and a "
+                },
+                {
+                  "type": "text",
+                  "text": "bootable",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " flag"
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "with a "
-        },
-        {
-          "type": "text",
-          "text": "predicted",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " "
-        },
-        {
-          "type": "text",
-          "text": "/dev/disk/by-path/...",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " and a "
-        },
-        {
-          "type": "text",
-          "text": "bootable",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " flag"
         }
       ]
     },
@@ -416,48 +393,38 @@
                 },
                 {
                   "type": "text",
-                  "text": " (or the older"
+                  "text": " (or the older "
+                },
+                {
+                  "type": "text",
+                  "text": "NetworkDeviceFunctions",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "NetworkPorts",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " split schema) for NIC/port/MAC data"
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "NetworkDeviceFunctions",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
         },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "NetworkPorts",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " split schema) for NIC/port/MAC data"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -501,35 +468,25 @@
                 },
                 {
                   "type": "text",
-                  "text": ","
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "Volumes",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " for disk data"
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "Volumes",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
         },
-        {
-          "type": "text",
-          "text": " for disk data"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -547,20 +504,11 @@
                 },
                 {
                   "type": "text",
-                  "text": " to flag which volume/drive is in"
+                  "text": " to flag which volume/drive is in the current UEFI boot order"
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "the current UEFI boot order"
         }
       ]
     },
@@ -5597,39 +5545,25 @@
                 },
                 {
                   "type": "text",
-                  "text": ") must fall"
+                  "text": ") must fall inside "
+                },
+                {
+                  "type": "text",
+                  "text": "machine_network_cidr",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "inside "
         },
-        {
-          "type": "text",
-          "text": "machine_network_cidr",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -5664,35 +5598,25 @@
                 },
                 {
                   "type": "text",
-                  "text": " entry must also fall inside"
+                  "text": " entry must also fall inside "
+                },
+                {
+                  "type": "text",
+                  "text": "machine_network_cidr",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "machine_network_cidr",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
         },
-        {
-          "type": "text",
-          "text": "."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -5723,20 +5647,11 @@
                 },
                 {
                   "type": "text",
-                  "text": " must each have exactly 1 or 2 entries (IPv4,"
+                  "text": " must each have exactly 1 or 2 entries (IPv4, or IPv4+IPv6 for dual-stack)."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "or IPv4+IPv6 for dual-stack)."
         }
       ]
     },
@@ -7680,143 +7595,129 @@
                 },
                 {
                   "type": "text",
-                  "text": " \u2014 a generic (no hostname, no per-host anything)"
+                  "text": " \u2014 a generic (no hostname, no per-host anything) Butane/Ignition config plus "
+                },
+                {
+                  "type": "text",
+                  "text": "collect-facts.sh",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", a dependency-minimal bash script that gathers "
+                },
+                {
+                  "type": "text",
+                  "text": "lsblk -J",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "ip -j addr",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "ethtool -i",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " per NIC (driver name \u2014 the ground truth for "
+                },
+                {
+                  "type": "text",
+                  "text": "devlink_port_naming",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "), "
+                },
+                {
+                  "type": "text",
+                  "text": "multipath -ll",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", "
+                },
+                {
+                  "type": "text",
+                  "text": "/sys/class/fc_host/*",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (Fibre Channel), "
+                },
+                {
+                  "type": "text",
+                  "text": "nvme list -o json",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", and "
+                },
+                {
+                  "type": "text",
+                  "text": "udevadm info",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " per block device, POSTs it all as one JSON blob to the webhook, then powers the machine off. Read-only \u2014 this boots the *live* ISO (RAM-only), never installs anything, so it's safe to run against a box that already has an OS on it."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "Butane/Ignition config plus "
         },
-        {
-          "type": "text",
-          "text": "collect-facts.sh",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", a dependency-minimal bash script that gathers "
-        },
-        {
-          "type": "text",
-          "text": "lsblk -J",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", "
-        },
-        {
-          "type": "text",
-          "text": "ip -j addr",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", "
-        },
-        {
-          "type": "text",
-          "text": "ethtool -i",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " per NIC (driver name \u2014 the ground truth for "
-        },
-        {
-          "type": "text",
-          "text": "devlink_port_naming",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "), "
-        },
-        {
-          "type": "text",
-          "text": "multipath -ll",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", "
-        },
-        {
-          "type": "text",
-          "text": "/sys/class/fc_host/*",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " (Fibre Channel), "
-        },
-        {
-          "type": "text",
-          "text": "nvme list -o json",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", and "
-        },
-        {
-          "type": "text",
-          "text": "udevadm info",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " per block device, POSTs it all as one JSON blob to the webhook, then powers the machine off. Read-only \u2014 this boots the *live* ISO (RAM-only), never installs anything, so it's safe to run against a box that already has an OS on it."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -7834,236 +7735,11 @@
                 },
                 {
                   "type": "text",
-                  "text": " \u2014 a single stdlib-only Python process"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "(plus PyYAML, already a hard dependency via Ansible itself). Its "
-        },
-        {
-          "type": "text",
-          "text": "only",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " job is receiving "
-        },
-        {
-          "type": "text",
-          "text": "collect-facts.sh",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "'s reports \u2014 it does not serve "
-        },
-        {
-          "type": "text",
-          "text": "verify.iso",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " or anything else. Host identification is "
-        },
-        {
-          "type": "text",
-          "text": "session-based",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", not MAC-search-based: "
-        },
-        {
-          "type": "text",
-          "text": "mount-verify-media.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " generates a fresh random UUID for every run and registers it ("
-        },
-        {
-          "type": "text",
-          "text": "POST /session/register",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", telling the webhook exactly which "
-        },
-        {
-          "type": "text",
-          "text": "hw_inventory.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " and "
-        },
-        {
-          "type": "text",
-          "text": "target_host",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " to expect) *before* anything boots; that UUID gets baked into that specific run's "
-        },
-        {
-          "type": "text",
-          "text": "collect-facts.sh",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " and sent back in its report, so matching is a direct dict lookup, not a search. This replaced an earlier MAC-overlap search across every cluster's "
-        },
-        {
-          "type": "text",
-          "text": "hw_inventory.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ", which had a real, confirmed failure mode on actual hardware: if the same physical MACs happened to also appear in a stale/duplicated "
-        },
-        {
-          "type": "text",
-          "text": "hw_inventory.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " under a *different* cluster (e.g. left over from an earlier cluster rename), the search could \u2014 and did \u2014 silently pick the wrong one, writing the report under the wrong cluster/hostname with no error at all. A payload with no session UUID at all (e.g. the shared, non-per-host ISO booted manually, outside "
-        },
-        {
-          "type": "text",
-          "text": "mount-verify-media.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "'s flow) falls back to that same MAC-search behavior \u2014 but the fallback now explicitly "
-        },
-        {
-          "type": "text",
-          "text": "rejects an ambiguous match",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " (the same MACs tied across two or more different clusters/hosts) instead of silently choosing one, listing every tied candidate in the error."
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "Either way, it cross-checks every prediction against the live-boot ground truth:"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
-        {
-          "type": "listItem",
-          "content": [
-            {
-              "type": "paragraph",
-              "content": [
-                {
-                  "type": "text",
-                  "text": "writes a full report to "
+                  "text": " \u2014 a single stdlib-only Python process (plus PyYAML, already a hard dependency via Ansible itself). Its "
                 },
                 {
                   "type": "text",
-                  "text": "<cluster_dir>/output/verified/<hostname>.yaml",
-                  "marks": [
-                    {
-                      "type": "code"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "listItem",
-          "content": [
-            {
-              "type": "paragraph",
-              "content": [
-                {
-                  "type": "text",
-                  "text": "auto-corrects",
+                  "text": "only",
                   "marks": [
                     {
                       "type": "strong"
@@ -8072,44 +7748,37 @@
                 },
                 {
                   "type": "text",
-                  "text": " confirmed interface-name mismatches directly in"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "hw_inventory.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " (backing up the original first, timestamped) \u2014 low risk, since a wrong name is just cosmetic/matchable-by-MAC"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
-        {
-          "type": "listItem",
-          "content": [
-            {
-              "type": "paragraph",
-              "content": [
+                  "text": " job is receiving "
+                },
                 {
                   "type": "text",
-                  "text": "does NOT auto-correct",
+                  "text": "collect-facts.sh",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "'s reports \u2014 it does not serve "
+                },
+                {
+                  "type": "text",
+                  "text": "verify.iso",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " or anything else. Host identification is "
+                },
+                {
+                  "type": "text",
+                  "text": "session-based",
                   "marks": [
                     {
                       "type": "strong"
@@ -8118,11 +7787,11 @@
                 },
                 {
                   "type": "text",
-                  "text": " disk-identifier mismatches ("
+                  "text": ", not MAC-search-based: "
                 },
                 {
                   "type": "text",
-                  "text": "wwn",
+                  "text": "mount-verify-media.yaml",
                   "marks": [
                     {
                       "type": "code"
@@ -8131,61 +7800,11 @@
                 },
                 {
                   "type": "text",
-                  "text": "/"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "serial_number",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "predicted_by_path",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ") \u2014 flagged in the report only, for manual review, since a wrong disk identifier changes *which physical disk* gets selected as the boot device"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
-        {
-          "type": "listItem",
-          "content": [
-            {
-              "type": "paragraph",
-              "content": [
-                {
-                  "type": "text",
-                  "text": "flags whether "
+                  "text": " generates a fresh random UUID for every run and registers it ("
                 },
                 {
                   "type": "text",
-                  "text": "devlink_port_naming",
+                  "text": "POST /session/register",
                   "marks": [
                     {
                       "type": "code"
@@ -8194,106 +7813,331 @@
                 },
                 {
                   "type": "text",
-                  "text": " should actually be enabled or"
+                  "text": ", telling the webhook exactly which "
+                },
+                {
+                  "type": "text",
+                  "text": "hw_inventory.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " and "
+                },
+                {
+                  "type": "text",
+                  "text": "target_host",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " to expect) *before* anything boots; that UUID gets baked into that specific run's "
+                },
+                {
+                  "type": "text",
+                  "text": "collect-facts.sh",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " and sent back in its report, so matching is a direct dict lookup, not a search. This replaced an earlier MAC-overlap search across every cluster's "
+                },
+                {
+                  "type": "text",
+                  "text": "hw_inventory.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", which had a real, confirmed failure mode on actual hardware: if the same physical MACs happened to also appear in a stale/duplicated "
+                },
+                {
+                  "type": "text",
+                  "text": "hw_inventory.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " under a *different* cluster (e.g. left over from an earlier cluster rename), the search could \u2014 and did \u2014 silently pick the wrong one, writing the report under the wrong cluster/hostname with no error at all. A payload with no session UUID at all (e.g. the shared, non-per-host ISO booted manually, outside "
+                },
+                {
+                  "type": "text",
+                  "text": "mount-verify-media.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "'s flow) falls back to that same MAC-search behavior \u2014 but the fallback now explicitly "
+                },
+                {
+                  "type": "text",
+                  "text": "rejects an ambiguous match",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (the same MACs tied across two or more different clusters/hosts) instead of silently choosing one, listing every tied candidate in the error."
                 }
               ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "disabled for that host, based on the *real* "
-        },
-        {
-          "type": "text",
-          "text": "phys_port_name",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/ driver \u2014 not a guess"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
-        {
-          "type": "listItem",
-          "content": [
+            },
             {
               "type": "paragraph",
               "content": [
                 {
                   "type": "text",
-                  "text": "for the session-based path: also flags when the booted host's"
+                  "text": "Either way, it cross-checks every prediction against the live-boot ground truth:"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "writes a full report to "
+                        },
+                        {
+                          "type": "text",
+                          "text": "<cluster_dir>/output/verified/<hostname>.yaml",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "auto-corrects",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " confirmed interface-name mismatches directly in "
+                        },
+                        {
+                          "type": "text",
+                          "text": "hw_inventory.yaml",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " (backing up the original first, timestamped) \u2014 low risk, since a wrong name is just cosmetic/matchable-by-MAC"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "does NOT auto-correct",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " disk-identifier mismatches ("
+                        },
+                        {
+                          "type": "text",
+                          "text": "wwn",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": "/ "
+                        },
+                        {
+                          "type": "text",
+                          "text": "serial_number",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": "/"
+                        },
+                        {
+                          "type": "text",
+                          "text": "predicted_by_path",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": ") \u2014 flagged in the report only, for manual review, since a wrong disk identifier changes *which physical disk* gets selected as the boot device"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "flags whether "
+                        },
+                        {
+                          "type": "text",
+                          "text": "devlink_port_naming",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " should actually be enabled or disabled for that host, based on the *real* "
+                        },
+                        {
+                          "type": "text",
+                          "text": "phys_port_name",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": "/ driver \u2014 not a guess"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "for the session-based path: also flags when the booted host's observed MACs have "
+                        },
+                        {
+                          "type": "text",
+                          "text": "zero overlap",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " with what's recorded for the "
+                        },
+                        {
+                          "type": "text",
+                          "text": "target_host",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " the session was registered for ("
+                        },
+                        {
+                          "type": "text",
+                          "text": "hardware_changed_warning",
+                          "marks": [
+                            {
+                              "type": "code"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " in the response/report) \u2014 since the session already tells us exactly which host to expect, that combination can only mean the hardware itself changed (NIC/board swap) since discovery last ran, not a mismatched identity"
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "observed MACs have "
         },
-        {
-          "type": "text",
-          "text": "zero overlap",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " with what's recorded for the "
-        },
-        {
-          "type": "text",
-          "text": "target_host",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " the session was registered for ("
-        },
-        {
-          "type": "text",
-          "text": "hardware_changed_warning",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " in the response/report) \u2014 since the session already tells us exactly which host to expect, that combination can only mean the hardware itself changed (NIC/board swap) since discovery last ran, not a mismatched identity"
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -8324,33 +8168,89 @@
                 },
                 {
                   "type": "text",
-                  "text": " **once per RHCOS"
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "once per RHCOS version+arch",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", not per host, and writes it into a plain, standard directory ("
+                },
+                {
+                  "type": "text",
+                  "text": "/var/www/html/coreos-isos",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " by default) for whatever web server you already run to serve \u2014 this playbook doesn't install, configure, or own a web server of any kind, only writes world-readable files into a directory you point it at. At real fleet scale (6\u2013100+ servers pulling this ~1.3GB ISO concurrently during an install run), a mature web server's static-file path (Apache's worker/event MPM, native "
+                },
+                {
+                  "type": "text",
+                  "text": "Range",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "206",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " support) is the right tool for that load, which a hand-rolled single-process listener isn't built for \u2014 this is exactly the same reason "
+                },
+                {
+                  "type": "text",
+                  "text": "verify_webhook.py",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " stays narrowly scoped to the small, low-volume POST endpoint instead. Redfish virtual media boots over plain HTTP from any web server, so "
+                },
+                {
+                  "type": "text",
+                  "text": "no PXE/TFTP infrastructure is needed at all",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " either."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "version+arch"
-        },
-        {
-          "type": "text",
-          "text": ", not per host, and writes it into a plain, standard directory (`/var/www/html/coreos-isos` by default) for whatever web server you already run to serve \u2014 this playbook doesn't install, configure, or own a web server of any kind, only writes world-readable files into a directory you point it at. At real fleet scale (6\u2013100+ servers pulling this ~1.3GB ISO concurrently during an install run), a mature web server's static-file path (Apache's worker/event MPM, native `Range`/`206` support) is the right tool for that load, which a hand-rolled single-process listener isn't built for \u2014 this is exactly the same reason `verify_webhook.py` stays narrowly scoped to the small, low-volume POST endpoint instead. Redfish virtual media boots over plain HTTP from any web server, so ",
-          "marks": [
-            {
-              "type": "strong"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "no PXE/TFTP infrastructure is needed at all** either."
         }
       ]
     },
@@ -9311,65 +9211,51 @@
                 },
                 {
                   "type": "text",
-                  "text": "'s Redfish virtual-media"
+                  "text": "'s Redfish virtual-media sequence (InsertMedia/boot-override/Reset) matches Dell iDRAC9 exactly (this repo's own confirmed usage elsewhere). HPE iLO/Lenovo XCC implement the same DMTF-standard actions but at different endpoint paths \u2014 adjust "
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_manager_path",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_system_path",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/ "
+                },
+                {
+                  "type": "text",
+                  "text": "bmc_virtual_media_id",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " for those vendors; not verified against real HPE/Lenovo hardware here."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "sequence (InsertMedia/boot-override/Reset) matches Dell iDRAC9 exactly (this repo's own confirmed usage elsewhere). HPE iLO/Lenovo XCC implement the same DMTF-standard actions but at different endpoint paths \u2014 adjust "
         },
-        {
-          "type": "text",
-          "text": "bmc_manager_path",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "bmc_system_path",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/ "
-        },
-        {
-          "type": "text",
-          "text": "bmc_virtual_media_id",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " for those vendors; not verified against real HPE/Lenovo hardware here."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -9387,39 +9273,25 @@
                 },
                 {
                   "type": "text",
-                  "text": ": a verification boot isn't installing"
+                  "text": ": a verification boot isn't installing anything, so it mostly just needs *recent-enough kernel drivers* for your hardware \u2014 it doesn't need to exactly match every OCP version you're targeting. Consider keeping a small rolling set (e.g. the newest supported minor per architecture) rather than one ISO per every OCP version ever used, to keep "
+                },
+                {
+                  "type": "text",
+                  "text": "manage-verify-iso.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "'s storage footprint down."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "anything, so it mostly just needs *recent-enough kernel drivers* for your hardware \u2014 it doesn't need to exactly match every OCP version you're targeting. Consider keeping a small rolling set (e.g. the newest supported minor per architecture) rather than one ISO per every OCP version ever used, to keep "
         },
-        {
-          "type": "text",
-          "text": "manage-verify-iso.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "'s storage footprint down."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -9450,111 +9322,102 @@
                 },
                 {
                   "type": "text",
-                  "text": " gathers this (see above),"
+                  "text": " gathers this (see above), and it's in every report, but "
+                },
+                {
+                  "type": "text",
+                  "text": "verify_webhook.py",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " doesn't cross-check it against anything yet \u2014 "
+                },
+                {
+                  "type": "text",
+                  "text": "hw_inventory.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "redfish_hw_facts.py",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " don't discover multipath/FC topology via Redfish at all currently (Redfish's "
+                },
+                {
+                  "type": "text",
+                  "text": "Storage",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "Volumes",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " schema doesn't really model HBA/FC fabric topology the way it models local drives). The raw data is there in the report for now; a future pass could add FC WWPN discovery via "
+                },
+                {
+                  "type": "text",
+                  "text": "SimpleStorage",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "/"
+                },
+                {
+                  "type": "text",
+                  "text": "FibreChannel",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " Redfish resources where BMCs expose them, and cross-check against what's actually observed."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "and it's in every report, but "
-        },
-        {
-          "type": "text",
-          "text": "verify_webhook.py",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " doesn't cross-check it against anything yet \u2014 "
-        },
-        {
-          "type": "text",
-          "text": "hw_inventory.yaml",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "redfish_hw_facts.py",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " don't discover multipath/FC topology via Redfish at all currently (Redfish's "
-        },
-        {
-          "type": "text",
-          "text": "Storage",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "Volumes",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " schema doesn't really model HBA/FC fabric topology the way it models local drives). The raw data is there in the report for now; a future pass could add FC WWPN discovery via "
-        },
-        {
-          "type": "text",
-          "text": "SimpleStorage",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "/"
-        },
-        {
-          "type": "text",
-          "text": "FibreChannel",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " Redfish resources where BMCs expose them, and cross-check against what's actually observed."
         }
       ]
     },
@@ -9954,52 +9817,38 @@
                 },
                 {
                   "type": "text",
-                  "text": ";"
+                  "text": "; override with "
+                },
+                {
+                  "type": "text",
+                  "text": "PULL_SECRET_FILE=...",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " / "
+                },
+                {
+                  "type": "text",
+                  "text": "SSH_KEY_FILE=...",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "override with "
         },
-        {
-          "type": "text",
-          "text": "PULL_SECRET_FILE=...",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " / "
-        },
-        {
-          "type": "text",
-          "text": "SSH_KEY_FILE=...",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
         {
           "type": "listItem",
           "content": [
@@ -10008,26 +9857,12 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "It refuses to write into any file that is tracked or not git-ignored"
+                  "text": "It refuses to write into any file that is tracked or not git-ignored (so it can't touch the published examples), rejects a private key or a file that isn't a pull secret, and leaves the patched files mode 600."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "(so it can't touch the published examples), rejects a private key or a file that isn't a pull secret, and leaves the patched files mode 600."
-        }
-      ]
-    },
-    {
-      "type": "bulletList",
-      "content": [
+        },
         {
           "type": "listItem",
           "content": [
@@ -10088,59 +9923,50 @@
                 },
                 {
                   "type": "text",
-                  "text": " is a different tool"
+                  "text": " is a different tool (a Python "
+                },
+                {
+                  "type": "text",
+                  "text": "jq",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " wrapper) and the script stops with install instructions if that's the one on "
+                },
+                {
+                  "type": "text",
+                  "text": "PATH",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "; "
+                },
+                {
+                  "type": "text",
+                  "text": "YQ=/path/to/yq",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " picks a specific binary."
                 }
               ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "(a Python "
-        },
-        {
-          "type": "text",
-          "text": "jq",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " wrapper) and the script stops with install instructions if that's the one on "
-        },
-        {
-          "type": "text",
-          "text": "PATH",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": "; "
-        },
-        {
-          "type": "text",
-          "text": "YQ=/path/to/yq",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": " picks a specific binary."
         }
       ]
     },
