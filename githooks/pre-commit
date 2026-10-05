@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# githooks/pre-commit - block commits that would publish real cluster data
+# or credentials. Second line of defence behind .gitignore: it also catches
+# `git add -f` and secrets pasted into the published example clusters.
+#
+# Enable once per clone:
+#   git config core.hooksPath githooks
+#
+# Blocks a commit if a staged file:
+#   - is under clusters/ but outside the example clusters (ocp-lab,
+#     ocp-lab-kvm), or is ocp-lab's real output/hw_inventory.yaml
+#   - adds a real pull secret (JSON, or base64 as in a dockerconfigjson
+#     Secret), a full SSH public key, or a private key
+#
+# The CHANGE_ME placeholders in the examples don't match. To bypass for a
+# commit you are sure about: git commit --no-verify
+
+set -euo pipefail
+
+example_clusters='^clusters/(ocp-lab|ocp-lab-kvm)/'
+real_files='^clusters/ocp-lab/output/hw_inventory\.yaml$'
+
+# Patterns are split so this file doesn't match itself.
+secret_patterns=(
+  '"auths"[[:space:]]*:[[:space:]]*[{][[:space:]]*"'   # pull secret JSON
+  'eyJhdXRo''cyI6'                                     # base64 of {"auths":
+  '(ssh-(rsa|ed25519|dss)|ecdsa-sha2-nistp[0-9]+) AAAA[A-Za-z0-9+/]{40,}'  # full SSH public key
+  '-----BEGIN [A-Z ]*PRIVATE'' KEY-----'               # private key
+)
+
+fail=0
+
+# --- files that must never be committed -------------------------------------
+while IFS= read -r -d '' f; do
+  if [[ $f == clusters/* && ! $f =~ $example_clusters ]] || [[ $f =~ $real_files ]]; then
+    echo "pre-commit: $f is real cluster data (only clusters/ocp-lab and clusters/ocp-lab-kvm are published)" >&2
+    fail=1
+  fi
+done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+
+# --- secrets in added lines -------------------------------------------------
+pattern="$(IFS='|'; echo "${secret_patterns[*]}")"
+hits="$(git diff --cached -U0 --no-color --diff-filter=ACMR |
+  awk -v pat="$pattern" '
+    /^\+\+\+ b\// { file = substr($0, 7); next }
+    /^\+/ && $0 ~ pat { printf "%s: %.60s...\n", file, substr($0, 2) }
+  ')"
+if [[ -n $hits ]]; then
+  echo "pre-commit: staged changes contain what looks like a real secret:" >&2
+  echo "$hits" | sed 's/^/  /' >&2
+  fail=1
+fi
+
+if [[ $fail -ne 0 ]]; then
+  echo "pre-commit: commit blocked. Unstage with: git restore --staged <file>" >&2
+  exit 1
+fi
