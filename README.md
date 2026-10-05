@@ -836,12 +836,59 @@ switch-config question, not something this playbook can work around.
   discovery via `SimpleStorage`/`FibreChannel` Redfish resources where
   BMCs expose them, and cross-check against what's actually observed.
 
+## Secrets: pull secret, SSH key, and real cluster data
+
+Only the two example clusters, `clusters/ocp-lab/` and
+`clusters/ocp-lab-kvm/`, are published. Every other directory under
+`clusters/` is a working or real cluster and stays local: `.gitignore`
+ignores `clusters/*` except those two, so a new cluster directory is
+private the moment it's created - nothing to add per cluster.
+
+The generators leave `CHANGE_ME` placeholders for the pull secret and SSH
+key. Fill them into a real cluster's generated files with
+`inject-secrets.sh`, which reads both from files outside the repo:
+
+```
+mkdir -p ~/.openshift && chmod 700 ~/.openshift
+cp pull-secret.txt ~/.openshift/pull-secret.txt && chmod 600 ~/.openshift/pull-secret.txt
+
+./run-cluster.sh <cluster-name> all
+./inject-secrets.sh <cluster-name>
+```
+
+| File | Fields `inject-secrets.sh` fills in |
+|---|---|
+| `output/install-config.yaml` | `pullSecret`, `sshKey` |
+| `output/acm/cluster.yaml` | both `kubernetes.io/dockerconfigjson` Secrets' `.dockerconfigjson` (base64), `InfraEnv` `spec.sshAuthorizedKey`, `AgentClusterInstall` `spec.sshPublicKey` |
+
+- Defaults are `~/.openshift/pull-secret.txt` and `~/.ssh/id_rsa.pub`;
+  override with `PULL_SECRET_FILE=...` / `SSH_KEY_FILE=...`.
+- It refuses to write into any file that is tracked or not git-ignored
+  (so it can't touch the published examples), rejects a private key or a
+  file that isn't a pull secret, and leaves the patched files mode 600.
+- Needs mikefarah `yq` v4. The `yq` from `dnf`/`pip` is a different tool
+  (a Python `jq` wrapper) and the script stops with install instructions
+  if that's the one on `PATH`; `YQ=/path/to/yq` picks a specific binary.
+
+`githooks/pre-commit` is a second line of defence: it blocks a commit
+that stages anything under `clusters/` outside the two examples (even
+with `git add -f`), or adds a real pull secret (JSON or base64), a full
+SSH public key, or a private key. Enable it once per clone:
+
+```
+git config core.hooksPath githooks
+```
+
+`git commit --no-verify` skips it for a commit you're sure about.
+
 ## Files
 
 ```
 redfish-hw-inventory/
 ├── ansible.cfg                      # no default inventory - see run-cluster.sh
 ├── run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name
+├── inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see "Secrets"
+├── githooks/pre-commit                # blocks commits of real cluster data / secrets - see "Secrets"
 ├── playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)
 ├── generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)
 ├── generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)
@@ -862,8 +909,7 @@ redfish-hw-inventory/
 ├── tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]
 ├── README.adf.json                         # this README, pre-converted to ADF
 └── clusters/
-    ├── convert/                     # legacy-format cluster files awaiting convert-clusters.yaml
-    │   └── test.yaml
+    ├── convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)
     ├── ocp-lab/                     # example: real hardware, bonded network
     │   ├── inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups
     │   ├── vars/
