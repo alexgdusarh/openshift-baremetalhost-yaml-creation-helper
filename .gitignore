@@ -47,3 +47,10 @@ vault_pass.txt
 .vscode/
 .idea/
 *.swp
+
+# Cluster data: only the example clusters are published. Real environments
+# (ocp5, test, convert, ...) stay local.
+clusters/*
+!clusters/ocp-lab/
+!clusters/ocp-lab-kvm/
+clusters/ocp-lab/output/hw_inventory.yaml
