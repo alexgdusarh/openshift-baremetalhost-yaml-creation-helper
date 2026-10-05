@@ -543,9 +543,9 @@ this priority order:
 2. `serialNumber` — same reasoning, for physical drives specifically
    (`Drive.SerialNumber` is far more consistently populated across
    vendors than a Volume's `Identifiers`). **Known caveat, unresolved:**
-   on a real drive, this module's `serialNumber` (`WD WMAYP3974446`,
+   on a real drive, this module's `serialNumber` (`WD WMAYP0000000`,
    straight from Redfish) did NOT exactly match what `lsblk`/`udevadm`
-   showed for the same disk (`WD-WMAYP3974446` — hyphen, not space) —
+   showed for the same disk (`WD-WMAYP0000000` — hyphen, not space) —
    likely vendor/udev-specific serial-string formatting that isn't
    normalizable the way the `wwn` prefix issue above was (no single
    known transformation rule to apply generally). Since `wwn` is
