@@ -933,6 +933,13 @@ Add a new cluster by copying one of these two directories to
 `clusters/<your-cluster-name>/` and editing its contents — see "Managing
 multiple clusters" above.
 
+To migrate legacy-format cluster files instead, drop them into
+`clusters/convert/` and run `ansible-playbook convert-clusters.yaml`. Each
+`clusters/convert/<name>.yaml` becomes `clusters/<name>/`. If
+`clusters/<name>/` already exists, that file is **skipped, not overwritten**,
+so hand edits (filled-in `CHANGE_ME` placeholders, `adapter_id`/`port`
+values) are never lost. Delete the directory to force a re-conversion.
+
 ---
 
 [^1]: **Importing this README into Confluence.** `README.adf.json` is

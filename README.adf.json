@@ -10085,6 +10085,132 @@
       ]
     },
     {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "To migrate legacy-format cluster files instead, drop them into "
+        },
+        {
+          "type": "text",
+          "text": "clusters/convert/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and run "
+        },
+        {
+          "type": "text",
+          "text": "ansible-playbook convert-clusters.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". Each "
+        },
+        {
+          "type": "text",
+          "text": "clusters/convert/<name>.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " becomes "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<name>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". If "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<name>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " already exists, that file is "
+        },
+        {
+          "type": "text",
+          "text": "skipped, not overwritten",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", so hand edits (filled-in "
+        },
+        {
+          "type": "text",
+          "text": "CHANGE_ME",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " placeholders, "
+        },
+        {
+          "type": "text",
+          "text": "adapter_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "port",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " values) are never lost. Delete the directory to force a re-conversion."
+        }
+      ]
+    },
+    {
       "type": "rule"
     },
     {
