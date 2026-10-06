@@ -11,7 +11,9 @@
 # clusters/<name>/{inventory/hosts.yaml,vars/cluster.yaml} layout - see
 # clusters/ocp-lab/{inventory/hosts.yaml,vars/cluster.yaml} for the
 # target schema each converted cluster follows. Files are read and
-# converted one at a time, in sequence.
+# converted one at a time, in sequence. A legacy file whose
+# clusters/<name>/ directory already exists is skipped, never
+# overwritten - delete that directory to re-convert it.
 #
 # Usage:
 #   ansible-playbook convert-clusters.yaml
@@ -65,9 +67,33 @@
         msg: "No files found in {{ convert_dir }} - nothing to do."
       when: convert_files.files | length == 0
 
+    # Never overwrite a cluster that already exists - it may have been
+    # hand-edited since (CHANGE_ME placeholders filled in, adapter_id/
+    # port set from discovery, ...). Delete clusters/<name>/ to force a
+    # re-conversion.
+    - name: Find cluster directories that already exist
+      find:
+        paths: clusters
+        file_type: directory
+      register: existing_cluster_dirs
+
+    - name: Record existing cluster names
+      set_fact:
+        existing_cluster_names: "{{ existing_cluster_dirs.files | map(attribute='path') | map('basename') | list }}"
+
+    - name: Skip legacy files whose cluster directory already exists
+      debug:
+        msg: >-
+          Skipping {{ legacy_file }} - clusters/{{ legacy_file | basename | regex_replace('\.ya?ml$', '') }}/
+          already exists. Delete it first to re-convert.
+      loop: "{{ convert_files.files | map(attribute='path') | sort }}"
+      loop_control:
+        loop_var: legacy_file
+      when: (legacy_file | basename | regex_replace('\.ya?ml$', '')) in existing_cluster_names
+
     - name: Convert each legacy cluster file, one at a time
       include_tasks: tasks/convert_one_cluster.yaml
       loop: "{{ convert_files.files | map(attribute='path') | sort }}"
       loop_control:
         loop_var: legacy_file
-      when: convert_files.files | length > 0
+      when: (legacy_file | basename | regex_replace('\.ya?ml$', '')) not in existing_cluster_names
