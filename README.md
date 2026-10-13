@@ -122,6 +122,10 @@ two ways of saying the same thing):
 ./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml
 ./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml
 ./run-cluster.sh <cluster-name> all              # both, in order
+./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version
+./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image
+./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan
+./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/
 
 # anything after -- is passed straight through to ansible-playbook:
 ./run-cluster.sh <cluster-name> discover -- --ask-vault-pass
@@ -587,6 +591,91 @@ Any boot-disk or bond-member-resolution problem is collected into
 `agent_config_warnings` and printed at the end of the run — check that
 output before applying the generated file.
 
+## Building and booting the Agent-based Installer ISO
+
+**`clients`** (`download-clients.yaml`) downloads `oc` + `kubectl`,
+`openshift-install`, `oc-mirror` and `opm` (`ccoctl` on request) from
+mirror.openshift.com — no root, no package manager. Each release goes to
+its own `~/.cache/openshift-clients/<version>/`, with versioned links
+(`oc-4.20.13`, `openshift-install-4.20.13`, ...) in the `bin/` dir of the
+Python running Ansible (e.g. `~/ac-venv/bin`; `~/.local/bin` if that isn't
+writable; `-e clients_bin_dir=...` to choose), so every version a fleet
+needs can be installed side by side; `agent-iso` then picks the installer
+matching each cluster's `ocp_version` automatically. Plain `oc`, `opm`, ...
+links are created when missing and only re-pointed at another version with
+`-e clients_default_links=true`.
+
+```
+./run-cluster.sh ocp5 clients                                          # ocp5's ocp_version
+ansible-playbook download-clients.yaml -e clients_version=4.20.13       # no cluster needed
+ansible-playbook download-clients.yaml -e clients_version=stable-4.20   # channel -> newest in it
+ansible-playbook download-clients.yaml -e clients_version=4.20.13 -e clients_default_links=true  # re-point plain `oc`, ...
+... -e '{"openshift_clients": ["oc", "openshift-install"]}'   # subset
+... -e clients_fips=true                                       # FIPS-capable openshift-install
+... -e openshift_mirror_base=https://internal-mirror/pub/openshift-v4
+```
+
+Tarball names differ between releases (versioned-only in older
+`sha256sum.txt` files, `-rhel8`/`-rhel9` builds from 4.16, arch suffixes,
+...), so nothing is hard-coded: `filter_plugins/openshift_clients_filters.py`
+picks, per client, the first candidate the release's own `sha256sum.txt`
+lists for this host's CPU architecture and glibc (RHEL 9 builds need glibc
+≥ 2.34, RHEL 8 ≥ 2.28), and every download is checked against that
+sha256. A tool a release doesn't ship (e.g. `oc-mirror` before 4.14) fails
+with its name; `-e clients_skip_missing=true` downloads the rest.
+
+**`agent-iso`** (`create-agent-iso.yaml`) runs
+`openshift-install agent create image` on the `install-config.yaml` +
+`agent-config.yaml` that `agent-config` wrote. They are copied into
+`output/image/` first (openshift-install consumes its inputs, so the
+originals in `output/` stay put); `clusters/<name>/manifests/*`, if
+present, goes to `output/image/openshift/` as extra manifests. The ISO,
+`auth/kubeconfig` and the install state end up in `output/image/`.
+
+- **Version:** ABI installs the release built into the binary, so its
+  version must equal `ocp_version` in `vars/cluster.yaml` (checked;
+  `-e allow_version_mismatch=true` overrides). Binary choice:
+  `-e openshift_install_bin=<path>`, or `-e openshift_install_download=true`
+  (same download and cache as `clients`), else the cached
+  `~/.cache/openshift-clients/<ocp_version>/openshift-install`, else
+  `openshift-install-<ocp_version>` / `openshift-install` from `PATH`.
+- **Re-runs:** a non-empty `output/image/` is refused, since it holds that
+  cluster's kubeconfig. `-e force=true` moves it to
+  `output/image.bak.<timestamp>` and builds again.
+- `-e abi_target=pxe-files` builds PXE artifacts into `output/pxe-files/` instead.
+
+**`agent-boot`** (`boot-agent-iso.yaml` + `library/redfish_boot_media.py`)
+mounts that ISO as Redfish virtual media on every host in `bmc_hosts`, sets
+a one-time boot to CD and powers the servers on (`ForceRestart` if already
+on). **It is a dry run unless `-e confirm=true`**: each host prints what it
+would do. The System, Manager and CD/DVD VirtualMedia slot are discovered
+from each BMC's Redfish tree, so the same play handles iDRAC (both the
+`Managers/` and the newer `Systems/` VirtualMedia layouts), iLO, XCC,
+Supermicro and sushy-tools; `bmc_system_id` / `bmc_virtual_media_id` per
+host override discovery.
+
+The BMC downloads the ISO itself, from its management network:
+
+- `-e iso_url=<http/https/nfs/cifs URL>` — already hosted somewhere; or
+- `-e iso_http_host=<this box's address as the BMCs see it>` — the ISO is
+  hard-linked into `served-isos/<cluster>/` (only the ISO, never the work
+  dir) and served by `tools/iso-http-server.py` on `iso_http_port` (8080).
+  That's a stdlib-only server with HTTP Range support, which BMC virtual
+  media needs and `python3 -m http.server` lacks; no root required. It
+  keeps running after the play — stop it with `pkill -f iso-http-server.py`.
+
+```
+./run-cluster.sh ocp5 agent-boot -- -e iso_http_host=10.0.0.5                      # plan
+./run-cluster.sh ocp5 agent-boot -- -e iso_http_host=10.0.0.5 -e confirm=true      # do it
+./run-cluster.sh ocp5 agent-boot -- --limit master-00 -e ...                         # subset
+./run-cluster.sh ocp5 agent-boot -- -e boot_batch=10 -e ...                          # batches
+./run-cluster.sh ocp5 agent-boot -- -e media_state=ejected -e confirm=true          # detach after install
+./run-cluster.sh ocp5 agent-boot -- -e media_state=ejected -e power=off -e confirm=true  # abort: eject + ForceOff
+```
+
+Then follow the install with `openshift-install agent wait-for
+bootstrap-complete` / `install-complete --dir clusters/<name>/output/image`.
+
 ## Verifying predictions against real hardware (live boot)
 
 Everything above — `predicted_linux_ifname`, `predicted_by_path`,
@@ -892,20 +981,28 @@ redfish-hw-inventory/
 ├── playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)
 ├── generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)
 ├── generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)
+├── download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root
+├── tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic
+├── create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/
+├── boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)
 ├── convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/
 ├── tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic
 ├── manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see "Verifying predictions..."
 ├── mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it
 ├── deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port
 ├── library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work
+├── library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset
 ├── filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic
 ├── filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic
+├── filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc
 ├── verify-boot/
 │   ├── verify.bu                     # generic Butane config embedded into verify.iso
 │   └── collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off
 ├── webhook/
 │   ├── verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server
 │   └── verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml
+├── tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)
+├── tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host
 ├── tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]
 ├── README.adf.json                         # this README, pre-converted to ADF
 └── clusters/
@@ -934,7 +1031,9 @@ Add a new cluster by copying one of these two directories to
 multiple clusters" above.
 
 To migrate legacy-format cluster files instead, drop them into
-`clusters/convert/` and run `ansible-playbook convert-clusters.yaml`. Each
+`clusters/convert/` and run `ansible-playbook convert-clusters.yaml` (all
+files) or `./run-cluster.sh <name> convert` (just `<name>.yaml`; a
+comma-separated `a,b` converts several). Each
 `clusters/convert/<name>.yaml` becomes `clusters/<name>/`. If
 `clusters/<name>/` already exists, that file is **skipped, not overwritten**,
 so hand edits (filled-in `CHANGE_ME` placeholders, `adapter_id`/`port`

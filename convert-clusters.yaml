@@ -16,7 +16,12 @@
 # overwritten - delete that directory to re-convert it.
 #
 # Usage:
-#   ansible-playbook convert-clusters.yaml
+#   ansible-playbook convert-clusters.yaml                    # every file
+#   ansible-playbook convert-clusters.yaml -e convert_only=a,b  # just a.yaml, b.yaml
+#   ./run-cluster.sh <name> convert                           # just <name>.yaml
+#
+# convert_only takes legacy file names without the .yaml/.yml extension,
+# as a comma-separated string or a YAML list. Empty/unset converts all.
 #
 # Only fields this repo's schema actually uses are carried over. Legacy
 # fields with no home here - bootstrap-only IPs, ISO/PXE generation
@@ -55,12 +60,33 @@
   connection: local
   vars:
     convert_dir: clusters/convert
+    convert_only: ''
+    # Normalise convert_only (string "a,b" or list) to a list of names.
+    convert_only_list: >-
+      {{
+        (convert_only.split(',') if convert_only is string else convert_only)
+        | map('trim') | reject('equalto', '') | list
+      }}
   tasks:
-    - name: Look for clusters/convert/*.yaml|*.yml
+    - name: Look for clusters/convert/*.yaml|*.yml (or just the convert_only names)
       find:
         paths: "{{ convert_dir }}"
-        patterns: ["*.yaml", "*.yml"]
+        patterns: >-
+          {{
+            ['*.yaml', '*.yml'] if convert_only_list | length == 0 else
+            convert_only_list | product(['.yaml', '.yml']) | map('join') | list
+          }}
       register: convert_files
+
+    - name: Every requested name must exist in clusters/convert/
+      assert:
+        that: missing_names | length == 0
+        fail_msg: >-
+          Not found in {{ convert_dir }}: {{ missing_names | join(', ') }}
+          (expected {{ convert_dir }}/<name>.yaml or .yml).
+      vars:
+        found_names: "{{ convert_files.files | map(attribute='path') | map('basename') | map('splitext') | map('first') | list }}"
+        missing_names: "{{ convert_only_list | difference(found_names) }}"
 
     - name: Nothing to convert
       debug:

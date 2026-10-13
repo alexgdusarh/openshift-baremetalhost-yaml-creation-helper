@@ -1155,7 +1155,7 @@
       "content": [
         {
           "type": "text",
-          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> all              # both, in order\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
+          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> all              # both, in order\n./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version\n./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image\n./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan\n./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
         }
       ]
     },
@@ -7475,6 +7475,1113 @@
       "content": [
         {
           "type": "text",
+          "text": "Building and booting the Agent-based Installer ISO"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`clients`",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "download-clients.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") downloads "
+        },
+        {
+          "type": "text",
+          "text": "oc",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " + "
+        },
+        {
+          "type": "text",
+          "text": "kubectl",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "openshift-install",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "oc-mirror",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "opm",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "ccoctl",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on request) from mirror.openshift.com \u2014 no root, no package manager. Each release goes to its own "
+        },
+        {
+          "type": "text",
+          "text": "~/.cache/openshift-clients/<version>/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", with versioned links ("
+        },
+        {
+          "type": "text",
+          "text": "oc-4.20.13",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "openshift-install-4.20.13",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", ...) in the "
+        },
+        {
+          "type": "text",
+          "text": "bin/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " dir of the Python running Ansible (e.g. "
+        },
+        {
+          "type": "text",
+          "text": "~/ac-venv/bin",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "; "
+        },
+        {
+          "type": "text",
+          "text": "~/.local/bin",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " if that isn't writable; "
+        },
+        {
+          "type": "text",
+          "text": "-e clients_bin_dir=...",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " to choose), so every version a fleet needs can be installed side by side; "
+        },
+        {
+          "type": "text",
+          "text": "agent-iso",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " then picks the installer matching each cluster's "
+        },
+        {
+          "type": "text",
+          "text": "ocp_version",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " automatically. Plain "
+        },
+        {
+          "type": "text",
+          "text": "oc",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "opm",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", ... links are created when missing and only re-pointed at another version with "
+        },
+        {
+          "type": "text",
+          "text": "-e clients_default_links=true",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh ocp5 clients                                          # ocp5's ocp_version\nansible-playbook download-clients.yaml -e clients_version=4.20.13       # no cluster needed\nansible-playbook download-clients.yaml -e clients_version=stable-4.20   # channel -> newest in it\nansible-playbook download-clients.yaml -e clients_version=4.20.13 -e clients_default_links=true  # re-point plain `oc`, ...\n... -e '{\"openshift_clients\": [\"oc\", \"openshift-install\"]}'   # subset\n... -e clients_fips=true                                       # FIPS-capable openshift-install\n... -e openshift_mirror_base=https://internal-mirror/pub/openshift-v4"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Tarball names differ between releases (versioned-only in older "
+        },
+        {
+          "type": "text",
+          "text": "sha256sum.txt",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " files, "
+        },
+        {
+          "type": "text",
+          "text": "-rhel8",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "-rhel9",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " builds from 4.16, arch suffixes, ...), so nothing is hard-coded: "
+        },
+        {
+          "type": "text",
+          "text": "filter_plugins/openshift_clients_filters.py",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " picks, per client, the first candidate the release's own "
+        },
+        {
+          "type": "text",
+          "text": "sha256sum.txt",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " lists for this host's CPU architecture and glibc (RHEL 9 builds need glibc \u2265 2.34, RHEL 8 \u2265 2.28), and every download is checked against that sha256. A tool a release doesn't ship (e.g. "
+        },
+        {
+          "type": "text",
+          "text": "oc-mirror",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " before 4.14) fails with its name; "
+        },
+        {
+          "type": "text",
+          "text": "-e clients_skip_missing=true",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " downloads the rest."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`agent-iso`",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "create-agent-iso.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") runs "
+        },
+        {
+          "type": "text",
+          "text": "openshift-install agent create image",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " on the "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " + "
+        },
+        {
+          "type": "text",
+          "text": "agent-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " that "
+        },
+        {
+          "type": "text",
+          "text": "agent-config",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " wrote. They are copied into "
+        },
+        {
+          "type": "text",
+          "text": "output/image/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " first (openshift-install consumes its inputs, so the originals in "
+        },
+        {
+          "type": "text",
+          "text": "output/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " stay put); "
+        },
+        {
+          "type": "text",
+          "text": "clusters/<name>/manifests/*",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", if present, goes to "
+        },
+        {
+          "type": "text",
+          "text": "output/image/openshift/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " as extra manifests. The ISO, "
+        },
+        {
+          "type": "text",
+          "text": "auth/kubeconfig",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and the install state end up in "
+        },
+        {
+          "type": "text",
+          "text": "output/image/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Version:",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " ABI installs the release built into the binary, so its version must equal "
+                },
+                {
+                  "type": "text",
+                  "text": "ocp_version",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " in "
+                },
+                {
+                  "type": "text",
+                  "text": "vars/cluster.yaml",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (checked; "
+                },
+                {
+                  "type": "text",
+                  "text": "-e allow_version_mismatch=true",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " overrides). Binary choice: "
+                },
+                {
+                  "type": "text",
+                  "text": "-e openshift_install_bin=<path>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", or "
+                },
+                {
+                  "type": "text",
+                  "text": "-e openshift_install_download=true",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (same download and cache as "
+                },
+                {
+                  "type": "text",
+                  "text": "clients",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "), else the cached "
+                },
+                {
+                  "type": "text",
+                  "text": "~/.cache/openshift-clients/<ocp_version>/openshift-install",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", else "
+                },
+                {
+                  "type": "text",
+                  "text": "openshift-install-<ocp_version>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " / "
+                },
+                {
+                  "type": "text",
+                  "text": "openshift-install",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " from "
+                },
+                {
+                  "type": "text",
+                  "text": "PATH",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Re-runs:",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " a non-empty "
+                },
+                {
+                  "type": "text",
+                  "text": "output/image/",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " is refused, since it holds that cluster's kubeconfig. "
+                },
+                {
+                  "type": "text",
+                  "text": "-e force=true",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " moves it to "
+                },
+                {
+                  "type": "text",
+                  "text": "output/image.bak.<timestamp>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " and builds again."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "-e abi_target=pxe-files",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " builds PXE artifacts into "
+                },
+                {
+                  "type": "text",
+                  "text": "output/pxe-files/",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " instead."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "`agent-boot`",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "boot-agent-iso.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " + "
+        },
+        {
+          "type": "text",
+          "text": "library/redfish_boot_media.py",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") mounts that ISO as Redfish virtual media on every host in "
+        },
+        {
+          "type": "text",
+          "text": "bmc_hosts",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", sets a one-time boot to CD and powers the servers on ("
+        },
+        {
+          "type": "text",
+          "text": "ForceRestart",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " if already on). "
+        },
+        {
+          "type": "text",
+          "text": "It is a dry run unless `-e confirm=true`",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ": each host prints what it would do. The System, Manager and CD/DVD VirtualMedia slot are discovered from each BMC's Redfish tree, so the same play handles iDRAC (both the "
+        },
+        {
+          "type": "text",
+          "text": "Managers/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and the newer "
+        },
+        {
+          "type": "text",
+          "text": "Systems/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " VirtualMedia layouts), iLO, XCC, Supermicro and sushy-tools; "
+        },
+        {
+          "type": "text",
+          "text": "bmc_system_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "bmc_virtual_media_id",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " per host override discovery."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The BMC downloads the ISO itself, from its management network:"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "-e iso_url=<http/https/nfs/cifs URL>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 already hosted somewhere; or"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "-e iso_http_host=<this box's address as the BMCs see it>",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " \u2014 the ISO is hard-linked into "
+                },
+                {
+                  "type": "text",
+                  "text": "served-isos/<cluster>/",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (only the ISO, never the work dir) and served by "
+                },
+                {
+                  "type": "text",
+                  "text": "tools/iso-http-server.py",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " on "
+                },
+                {
+                  "type": "text",
+                  "text": "iso_http_port",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " (8080). That's a stdlib-only server with HTTP Range support, which BMC virtual media needs and "
+                },
+                {
+                  "type": "text",
+                  "text": "python3 -m http.server",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " lacks; no root required. It keeps running after the play \u2014 stop it with "
+                },
+                {
+                  "type": "text",
+                  "text": "pkill -f iso-http-server.py",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh ocp5 agent-boot -- -e iso_http_host=10.0.0.5                      # plan\n./run-cluster.sh ocp5 agent-boot -- -e iso_http_host=10.0.0.5 -e confirm=true      # do it\n./run-cluster.sh ocp5 agent-boot -- --limit master-00 -e ...                         # subset\n./run-cluster.sh ocp5 agent-boot -- -e boot_batch=10 -e ...                          # batches\n./run-cluster.sh ocp5 agent-boot -- -e media_state=ejected -e confirm=true          # detach after install\n./run-cluster.sh ocp5 agent-boot -- -e media_state=ejected -e power=off -e confirm=true  # abort: eject + ForceOff"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Then follow the install with "
+        },
+        {
+          "type": "text",
+          "text": "openshift-install agent wait-for bootstrap-complete",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "install-complete --dir clusters/<name>/output/image",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
           "text": "Verifying predictions against real hardware (live boot)"
         }
       ]
@@ -10058,7 +11165,7 @@
       "content": [
         {
           "type": "text",
-          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u2514\u2500\u2500 acm/"
+          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root\n\u251c\u2500\u2500 tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic\n\u251c\u2500\u2500 create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/\n\u251c\u2500\u2500 boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)\n\u251c\u2500\u2500 tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u2514\u2500\u2500 acm/"
         }
       ]
     },
@@ -10115,7 +11222,46 @@
         },
         {
           "type": "text",
-          "text": ". Each "
+          "text": " (all files) or "
+        },
+        {
+          "type": "text",
+          "text": "./run-cluster.sh <name> convert",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (just "
+        },
+        {
+          "type": "text",
+          "text": "<name>.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "; a comma-separated "
+        },
+        {
+          "type": "text",
+          "text": "a,b",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " converts several). Each "
         },
         {
           "type": "text",

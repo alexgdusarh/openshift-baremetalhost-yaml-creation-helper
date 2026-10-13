@@ -1,0 +1,211 @@
+---
+# boot-agent-iso.yaml
+#
+# Fourth stage: mounts the ABI ISO that create-agent-iso.yaml built as
+# Redfish virtual media on every BMC in the inventory, sets a one-time
+# boot to CD, and powers the servers on (or force-restarts running ones).
+#
+# DRY RUN BY DEFAULT. Without -e confirm=true nothing is mounted or
+# rebooted - each host just reports what it would do (Ansible check
+# mode). Rebooting a server that is already part of a running cluster
+# wipes it on install, so look at the plan first.
+#
+#   ./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr BMCs reach this box at>
+#   ./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=10.0.0.5 -e confirm=true
+#   ./run-cluster.sh <cluster-name> agent-boot -- -e iso_url=http://web/ocp5.iso -e confirm=true
+#   ./run-cluster.sh <cluster-name> agent-boot -- --limit master-00 -e ...
+#   ./run-cluster.sh <cluster-name> agent-boot -- -e media_state=ejected -e confirm=true
+#
+# Where the ISO comes from - the BMC downloads it itself, from its own
+# management network:
+#   - iso_url: an existing http(s)/nfs/cifs URL the BMCs can reach. Used
+#     as-is.
+#   - otherwise iso_http_host (+ iso_http_port, default 8080): this box
+#     serves it. The ISO is hard-linked into served_isos_dir/<cluster>/
+#     (only the ISO - never the work dir, which holds auth/kubeconfig) and
+#     tools/iso-http-server.py (HTTP Range support, which BMC virtual
+#     media needs; no root) is started detached if nothing answers on
+#     that port yet. One server serves every cluster's ISO. It keeps
+#     running after the play - BMCs read the ISO while the nodes boot.
+#     Stop it with: pkill -f iso-http-server.py
+#
+# media_state: booted (default) | mounted (no reset) | ejected (after the
+# install, to detach the ISO). power: restart (default; ForceRestart
+# running hosts, power on the rest) | on (only power on hosts that are
+# off) | off (with media_state=ejected: eject + ForceOff - abort/cleanup).
+# boot_batch: hosts per batch (default all at once).
+#
+# Vendor-neutral: library/redfish_boot_media.py finds the System, Manager
+# and CD/DVD VirtualMedia slot from each BMC's Redfish tree rather than
+# assuming vendor paths. Per host, bmc_system_id / bmc_virtual_media_id
+# override the discovery (sushy-tools labs use virtual_domain).
+
+- name: Resolve and publish the ISO
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    confirm: false
+    media_state: booted
+    iso_url: ''
+    iso_http_host: ''
+    iso_http_port: 8080
+    served_isos_dir: "{{ playbook_dir }}/served-isos"
+    cluster_key: "{{ cluster_dir | basename }}"
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+          - media_state in ['booted', 'mounted', 'ejected']
+        fail_msg: >-
+          cluster_dir is required (or use ./run-cluster.sh <cluster-name>
+          agent-boot); media_state must be booted, mounted or ejected.
+
+    - name: Resolve the ISO to serve
+      when: media_state != 'ejected' and iso_url | length == 0
+      block:
+        - name: Need an address the BMCs can reach this box at
+          assert:
+            that: iso_http_host | length > 0
+            fail_msg: >-
+              Set -e iso_http_host=<IP/name of this box as seen from the
+              BMC network> (this box serves the ISO), or -e iso_url=<URL> if
+              it is already hosted somewhere the BMCs can reach.
+
+        - name: Find the built ISO
+          find:
+            paths: "{{ cluster_dir }}/output/image"
+            patterns: ["*.iso"]
+          register: built_iso
+
+        - name: Exactly one ISO must exist
+          assert:
+            that: built_iso.files | length == 1
+            fail_msg: >-
+              Expected one ISO in {{ cluster_dir }}/output/image, found
+              {{ built_iso.files | length }} - run ./run-cluster.sh
+              {{ cluster_key }} agent-iso first.
+
+        # Not iso_url: this block's `when` re-evaluates on every task, so
+        # setting iso_url here would skip the rest of it.
+        - name: Record the ISO and the URL it will be served at
+          set_fact:
+            iso_src: "{{ built_iso.files[0].path }}"
+            iso_rel: "{{ cluster_key }}/{{ built_iso.files[0].path | basename }}"
+            served_iso_url: "http://{{ iso_http_host }}:{{ iso_http_port }}/{{ cluster_key }}/{{ built_iso.files[0].path | basename }}"
+
+        - name: Publish and serve it (confirm=true only)
+          when: confirm | bool
+          block:
+            - name: Ensure served_isos_dir/<cluster> exists
+              file:
+                path: "{{ served_isos_dir }}/{{ cluster_key }}"
+                state: directory
+                mode: "0755"
+
+            - name: Hard-link the ISO into served_isos_dir (no 1 GB copy)
+              file:
+                src: "{{ iso_src | realpath }}"
+                dest: "{{ served_isos_dir }}/{{ iso_rel }}"
+                state: hard
+                force: true
+              register: iso_link
+              failed_when: false
+
+            - name: Copy instead when a hard link is not possible (different filesystem)
+              copy:
+                src: "{{ iso_src }}"
+                dest: "{{ served_isos_dir }}/{{ iso_rel }}"
+                mode: "0644"
+              when: iso_link.failed | default(false) or iso_link.msg is defined
+
+            - name: Is the ISO server already running?
+              uri:
+                url: "http://127.0.0.1:{{ iso_http_port }}/{{ iso_rel }}"
+                method: HEAD
+              register: iso_head
+              failed_when: false
+
+            - name: Start tools/iso-http-server.py detached
+              shell: >-
+                setsid nohup python3 {{ playbook_dir }}/tools/iso-http-server.py
+                --dir {{ served_isos_dir | quote }} --port {{ iso_http_port }}
+                > {{ served_isos_dir | quote }}/iso-http-server.log 2>&1 < /dev/null &
+              when: iso_head.status | default(-1) != 200
+
+            - name: Wait for it to listen
+              wait_for:
+                host: 127.0.0.1
+                port: "{{ iso_http_port }}"
+                timeout: 15
+              when: iso_head.status | default(-1) != 200
+
+            - name: The ISO must be servable, with Range support
+              uri:
+                url: "http://127.0.0.1:{{ iso_http_port }}/{{ iso_rel }}"
+                headers:
+                  Range: bytes=0-1023
+                status_code: [206]
+                return_content: false
+
+    - name: Share the image URL with the BMC play
+      set_fact:
+        boot_image_url: "{{ iso_url if iso_url | length > 0 else served_iso_url | default('') }}"
+
+    - name: Dry run
+      debug:
+        msg: >-
+          DRY RUN - nothing will be mounted or rebooted. Review the per-host
+          plan below, then re-run with -e confirm=true.
+      when: not (confirm | bool)
+
+- name: Mount the ISO and boot each server from it
+  hosts: bmc_hosts
+  gather_facts: false
+  connection: local
+  serial: "{{ boot_batch | default(omit) }}"
+  vars:
+    confirm: false
+    media_state: booted
+    power: restart
+  tasks:
+    - name: Redfish virtual media + one-time CD boot + reset
+      redfish_boot_media:
+        baseuri: "{{ bmc_ip_hostname }}"
+        username: "{{ bmc_username }}"
+        password: "{{ bmc_password }}"
+        validate_certs: "{{ bmc_validate_certs | default(false) }}"
+        use_ssl: "{{ bmc_use_ssl | default(true) }}"
+        port: "{{ bmc_port | default(omit) }}"
+        state: "{{ media_state }}"
+        image_url: "{{ hostvars['localhost'].boot_image_url if media_state != 'ejected' else omit }}"
+        power: "{{ power }}"
+        system_id: >-
+          {{ (virtual_domain | default(inventory_hostname)) if (virtualbmc | default(false))
+             else (bmc_system_id | default(omit)) }}
+        virtual_media_id: "{{ bmc_virtual_media_id | default(omit) }}"
+      check_mode: "{{ not (confirm | bool) }}"
+      register: boot
+
+    - name: Result
+      debug:
+        msg: "{{ inventory_hostname }} ({{ boot.power_state_before }}): {{ boot.actions | join('; ') if boot.actions else 'nothing to do' }}"
+
+- name: Next steps
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    confirm: false
+    media_state: booted
+  tasks:
+    - name: Follow the install
+      debug:
+        msg:
+          - "openshift-install agent wait-for bootstrap-complete --dir {{ cluster_dir }}/output/image"
+          - "openshift-install agent wait-for install-complete   --dir {{ cluster_dir }}/output/image"
+          - "Afterwards: ./run-cluster.sh {{ cluster_dir | basename }} agent-boot -- -e media_state=ejected -e confirm=true"
+          - "Stop the ISO server when no cluster needs it: pkill -f iso-http-server.py"
+      when: confirm | bool and media_state == 'booted'

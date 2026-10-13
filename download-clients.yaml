@@ -1,0 +1,141 @@
+---
+# download-clients.yaml
+#
+# Downloads the OpenShift client binaries (oc + kubectl, openshift-install,
+# oc-mirror, opm; ccoctl on request) for one release from
+# mirror.openshift.com - no root, no package manager.
+#
+#   ./run-cluster.sh <cluster-name> clients            # that cluster's ocp_version
+#   ansible-playbook download-clients.yaml -e clients_version=4.20.13
+#   ansible-playbook download-clients.yaml -e clients_version=stable-4.20
+#   ... -e '{"openshift_clients": ["oc", "openshift-install"]}'
+#   ... -e clients_default_links=true    # also point plain `oc`, `opm`, ... at this version
+#   ... -e clients_fips=true             # FIPS-capable openshift-install build
+#   ... -e openshift_mirror_base=https://internal-mirror/pub/openshift-v4
+#
+# Each release goes to its own dir, so any number of versions coexist:
+#   ~/.cache/openshift-clients/<version>/{oc,kubectl,openshift-install,oc-mirror,opm}
+# and gets versioned links in clients_bin_dir: oc-4.20.13,
+# openshift-install-4.20.13, ... Those are what create-agent-iso.yaml looks
+# for, so every cluster gets the installer matching its own ocp_version.
+# Plain `oc`, `opm`, ... links are created when missing; one that already
+# points elsewhere is only re-pointed with clients_default_links=true.
+#
+# clients_bin_dir defaults to the bin/ dir of the Python running Ansible
+# (e.g. ~/ac-venv/bin for a venv install - on PATH whenever the playbooks
+# run), or ~/.local/bin when that isn't writable (system Ansible).
+#
+# The right tarball per client is picked from the release's own
+# sha256sum.txt for this host's architecture and glibc (see
+# tasks/download_clients.yaml), and checked against its sha256.
+
+- name: Download OpenShift client binaries
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    openshift_clients: [oc, openshift-install, oc-mirror, opm]
+    openshift_clients_cache: "{{ lookup('env', 'HOME') }}/.cache/openshift-clients"
+    openshift_mirror_base: https://mirror.openshift.com/pub/openshift-v4
+    clients_bin_dir: ''
+    clients_default_links: false
+    clients_fips: false
+    clients_skip_missing: false
+  tasks:
+    - name: Load the cluster's ocp_version, when run for a cluster
+      include_vars:
+        file: "{{ cluster_dir }}/vars/cluster.yaml"
+      when:
+        - clients_version is not defined
+        - cluster_dir is defined
+
+    - name: Use ocp_version unless clients_version was given
+      set_fact:
+        clients_version: "{{ clients_version | default(ocp_version | default('')) | string }}"
+
+    - name: A release is required
+      assert:
+        that: clients_version | length > 0
+        fail_msg: >-
+          No release to download. Pass -e clients_version=4.20.13 (or a
+          channel such as stable-4.20), or run for a cluster whose
+          vars/cluster.yaml sets ocp_version.
+
+    - name: Download into the per-version cache
+      include_tasks: tasks/download_clients.yaml
+
+    - name: Is the running Python's bin/ dir writable?
+      stat:
+        path: "{{ ansible_playbook_python | dirname }}"
+      register: clients_py_bin
+      when: clients_bin_dir | length == 0
+
+    - name: Pick the bin dir
+      set_fact:
+        clients_bin_dir: >-
+          {{ clients_bin_dir if clients_bin_dir | length > 0
+             else (ansible_playbook_python | dirname) if clients_py_bin.stat.writeable | default(false)
+             else lookup('env', 'HOME') ~ '/.local/bin' }}
+
+    - name: Ensure the bin dir exists
+      file:
+        path: "{{ clients_bin_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Versioned links (oc-4.20.13, ...)
+      file:
+        src: "{{ item.value }}"
+        dest: "{{ clients_bin_dir }}/{{ item.key }}-{{ clients_resolved_version }}"
+        state: link
+        force: true
+      loop: "{{ clients_installed | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}-{{ clients_resolved_version }}"
+
+    - name: Look for existing plain links (oc, opm, ...)
+      stat:
+        path: "{{ clients_bin_dir }}/{{ item }}"
+        follow: false
+      loop: "{{ clients_installed.keys() | list }}"
+      register: clients_plain
+
+    - name: Plain links -> this version (when missing, or clients_default_links=true)
+      file:
+        src: "{{ clients_installed[item.item] }}"
+        dest: "{{ clients_bin_dir }}/{{ item.item }}"
+        state: link
+        force: true
+      loop: "{{ clients_plain.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not item.stat.exists or clients_default_links | bool
+
+    - name: Smoke-test the binaries
+      command: "{{ item.value }} {{ 'version --client' if item.key in ['oc', 'kubectl'] else 'version' }}"
+      loop: "{{ clients_installed | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: clients_smoke
+      changed_when: false
+      failed_when: false
+
+    - name: Build the summary
+      set_fact:
+        clients_summary: >-
+          {%- set out = ['Installed ' ~ clients_resolved_version ~ ' (' ~ clients_arch ~ ', glibc ' ~ clients_glibc ~ ') in ' ~ clients_dir,
+                         'Links in ' ~ clients_bin_dir] -%}
+          {%- for r in clients_smoke.results -%}
+          {%-   set _ = out.append(r.item.key ~ ': ' ~ ((r.stdout_lines | first)[:120] if (r.rc == 0 and r.stdout_lines) else 'FAILED rc=' ~ r.rc ~ ' ' ~ (r.stderr | default(''))[:200])) -%}
+          {%- endfor -%}
+          {%- for r in clients_plain.results if r.stat.exists and not clients_default_links | bool and r.stat.lnk_source | default('') != clients_installed[r.item] -%}
+          {%-   set _ = out.append(r.item ~ ' left pointing at ' ~ (r.stat.lnk_source | default('a non-link file')) ~ ' (-e clients_default_links=true to switch)') -%}
+          {%- endfor -%}
+          {%- if clients_bin_dir not in lookup('env', 'PATH').split(':') -%}
+          {%-   set _ = out.append(clients_bin_dir ~ ' is not on PATH - add: export PATH=' ~ clients_bin_dir ~ ':$PATH') -%}
+          {%- endif -%}
+          {{ out }}
+
+    - name: Done
+      debug:
+        var: clients_summary

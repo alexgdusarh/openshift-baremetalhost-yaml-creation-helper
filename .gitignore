@@ -31,7 +31,9 @@ vault_pass.txt
 *.7z
 *.rar
 
-# ISO images built by manage-verify-iso.yaml / mount-verify-media.yaml
+# ISO images built by manage-verify-iso.yaml / mount-verify-media.yaml /
+# create-agent-iso.yaml, and boot-agent-iso.yaml's served copies + log
+served-isos/
 *.iso
 
 # Backups / temp / runtime files
@@ -54,3 +56,4 @@ clusters/*
 !clusters/ocp-lab/
 !clusters/ocp-lab-kvm/
 clusters/ocp-lab/output/hw_inventory.yaml
+collections/

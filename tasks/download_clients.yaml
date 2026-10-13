@@ -1,0 +1,164 @@
+---
+# tasks/download_clients.yaml
+#
+# Downloads OpenShift client binaries for one release from
+# mirror.openshift.com (or an internal copy of it) into
+#   <openshift_clients_cache>/<version>/{oc,kubectl,openshift-install,oc-mirror,opm,...}
+# Shared by download-clients.yaml and create-agent-iso.yaml's
+# openshift_install_download option.
+#
+# Inputs:
+#   clients_version          exact (4.20.13) or a mirror channel dir
+#                            (stable-4.20, fast-4.18, latest-4.16, ...)
+#   openshift_clients        list: oc, openshift-install, oc-mirror, opm, ccoctl
+#   openshift_clients_cache  per-version install root
+#   openshift_mirror_base    https://mirror.openshift.com/pub/openshift-v4
+#   clients_fips             prefer the FIPS-capable openshift-install build
+#   clients_skip_missing     a client this release doesn't ship is a
+#                            warning instead of an error
+# Sets:
+#   clients_resolved_version, clients_dir, clients_installed (name -> path)
+#
+# Which tarball per client: filter_plugins/openshift_clients_filters.py,
+# matched against the release's own sha256sum.txt for this host's CPU
+# architecture and glibc (RHEL 9 builds need glibc >= 2.34, RHEL 8 >= 2.28).
+# Every download is checked against that sha256. Already-installed
+# binaries are not downloaded again.
+
+- name: Detect CPU architecture and glibc version
+  command: "{{ item }}"
+  loop:
+    - uname -m
+    - getconf GNU_LIBC_VERSION
+  register: clients_host
+  changed_when: false
+
+- name: Record host facts and the release dir URL
+  set_fact:
+    clients_arch: "{{ clients_host.results[0].stdout }}"
+    clients_glibc: "{{ clients_host.results[1].stdout.split()[-1] }}"
+    clients_release_url: >-
+      {{ openshift_mirror_base }}/{{ clients_host.results[0].stdout }}/clients/ocp/{{ clients_version }}
+
+- name: Read release.txt (resolves channels like stable-4.20 to a version)
+  uri:
+    url: "{{ clients_release_url }}/release.txt"
+    return_content: true
+  register: clients_release_txt
+  failed_when: false
+
+- name: The release must exist on the mirror
+  assert:
+    that: clients_release_txt.status | default(0) == 200
+    fail_msg: >-
+      {{ clients_release_url }}/release.txt -> HTTP {{ clients_release_txt.status | default('?') }}
+      {{ clients_release_txt.msg | default('') }}. Check clients_version
+      ({{ clients_version }}) and that this host can reach {{ openshift_mirror_base }}.
+
+- name: Read sha256sum.txt
+  uri:
+    url: "{{ clients_release_url }}/sha256sum.txt"
+    return_content: true
+  register: clients_sha_txt
+
+- name: Pick a tarball per client
+  set_fact:
+    clients_resolved_version: "{{ clients_release_txt.content | release_version }}"
+    clients_checksums: "{{ clients_sha_txt.content | parse_sha256sum }}"
+
+- name: Map each client to its tarball ('' = not shipped in this release)
+  set_fact:
+    clients_tarballs: >-
+      {{ clients_tarballs | default({}) | combine({
+           item: clients_checksums | pick_client_file(item, clients_arch, clients_glibc,
+                                                      clients_resolved_version, clients_fips | bool, strict=False)
+         }) }}
+  loop: "{{ openshift_clients }}"
+
+- name: Every requested client must exist in this release
+  assert:
+    that: missing | length == 0 or clients_skip_missing | bool
+    fail_msg: >-
+      {{ clients_resolved_version }} ({{ clients_arch }}) does not ship:
+      {{ missing | join(', ') }}. Drop it from openshift_clients, or
+      -e clients_skip_missing=true to download the rest.
+  vars:
+    missing: "{{ clients_tarballs | dict2items | selectattr('value', 'equalto', '') | map(attribute='key') | list }}"
+
+- name: Set the install dir
+  set_fact:
+    clients_dir: "{{ openshift_clients_cache }}/{{ clients_resolved_version }}"
+    clients_wanted: "{{ clients_tarballs | dict2items | rejectattr('value', 'equalto', '') | items2dict }}"
+
+- name: Which clients are already installed?
+  stat:
+    path: "{{ clients_dir }}/{{ (item.key | client_binaries)[0] }}"
+  loop: "{{ clients_wanted | dict2items }}"
+  register: clients_present
+
+- name: Download, verify and unpack the missing ones
+  when: clients_todo | length > 0
+  vars:
+    clients_todo: "{{ clients_present.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+  block:
+    - name: Ensure work dirs exist
+      file:
+        path: "{{ clients_dir }}/.extract/{{ item.key }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ clients_todo }}"
+
+    - name: Download (sha256-verified)
+      get_url:
+        url: "{{ clients_release_url }}/{{ item.value }}"
+        dest: "{{ clients_dir }}/.extract/{{ item.value }}"
+        checksum: "sha256:{{ clients_checksums[item.value] }}"
+        mode: "0644"
+      loop: "{{ clients_todo }}"
+
+    - name: Unpack
+      unarchive:
+        src: "{{ clients_dir }}/.extract/{{ item.value }}"
+        dest: "{{ clients_dir }}/.extract/{{ item.key }}"
+        remote_src: true
+      loop: "{{ clients_todo }}"
+
+    - name: List what each tarball contained
+      find:
+        paths: "{{ clients_dir }}/.extract/{{ item.key }}"
+        file_type: file
+        recurse: true
+      loop: "{{ clients_todo }}"
+      register: clients_extracted
+
+    - name: Pair each expected binary with its tarball's files
+      set_fact:
+        clients_copies: >-
+          {% set out = [] %}{% for r in clients_extracted.results %}{% for b in r.item.key | client_binaries %}{% set _ = out.append({'binary': b, 'files': r.files}) %}{% endfor %}{% endfor %}{{ out }}
+
+    # By name when the tarball has it; otherwise (single-binary tarballs
+    # with a different file name, e.g. opm-rhel9) the largest file -
+    # READMEs/licenses are tiny.
+    - name: Install the binaries
+      copy:
+        src: >-
+          {{ (item.files | selectattr('path', 'match', '.*/' ~ item.binary ~ '$') | map(attribute='path') | first)
+             | default((item.files | sort(attribute='size') | last).path, true) }}
+        dest: "{{ clients_dir }}/{{ item.binary }}"
+        mode: "0755"
+      loop: "{{ clients_copies }}"
+      loop_control:
+        label: "{{ item.binary }}"
+
+  always:
+    - name: Remove tarballs and scratch files
+      file:
+        path: "{{ clients_dir }}/.extract"
+        state: absent
+
+- name: Record installed paths
+  set_fact:
+    clients_installed: >-
+      {{ dict(clients_wanted.keys() | map('client_binaries') | flatten
+              | zip(clients_wanted.keys() | map('client_binaries') | flatten
+                    | map('regex_replace', '^', clients_dir ~ '/'))) }}

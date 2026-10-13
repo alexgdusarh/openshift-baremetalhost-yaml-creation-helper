@@ -1,0 +1,260 @@
+---
+# create-agent-iso.yaml
+#
+# Third-stage playbook: runs `openshift-install agent create image`
+# (or `pxe-files`) on the install-config.yaml + agent-config.yaml that
+# generate-agent-config.yaml wrote to <cluster_dir>/output/.
+#
+# Prefer the wrapper:
+#   ./run-cluster.sh <cluster-name> agent-iso
+#   ./run-cluster.sh <cluster-name> agent-iso -- -e openshift_install_download=true
+#   ./run-cluster.sh <cluster-name> agent-iso -- -e abi_target=pxe-files
+#
+# Or directly:
+#   ansible-playbook create-agent-iso.yaml -e cluster_dir=clusters/<cluster-name>
+#
+# openshift-install CONSUMES (deletes) the config files in its --dir, so
+# they are copied into a fresh work dir, <cluster_dir>/output/<abi_target>/
+# (image/ or pxe-files/), and the originals in output/ stay untouched.
+# Anything in <cluster_dir>/manifests/ is copied to <work dir>/openshift/
+# as extra cluster manifests (ABI picks those up from there).
+#
+# The work dir also receives auth/kubeconfig + kubeadmin-password for the
+# cluster the ISO installs. Re-running against an existing work dir
+# therefore refuses by default; -e force=true moves the old one aside to
+# <work dir>.bak.<timestamp> (never deletes it) before building again.
+#
+# Which openshift-install binary (ABI installs the release embedded in the
+# binary, so its version IS the OCP version that gets installed):
+#   1. -e openshift_install_bin=/path/to/openshift-install, if given.
+#   2. -e openshift_install_download=true: fetch the ocp_version client
+#      from the mirror (tasks/download_clients.yaml, same cache as
+#      download-clients.yaml / `run-cluster.sh <name> clients`).
+#   3. Otherwise <openshift_clients_cache>/<ocp_version>/openshift-install
+#      if already downloaded, then openshift-install-<ocp_version>, then
+#      openshift-install, from PATH.
+# When vars/cluster.yaml sets ocp_version, the binary's version must match
+# it exactly; -e allow_version_mismatch=true overrides.
+
+- name: Validate inputs before loading any cluster-specific vars files
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+        fail_msg: >-
+          cluster_dir is required, e.g.
+          -e cluster_dir=clusters/ocp-lab - or use
+          ./run-cluster.sh ocp-lab agent-iso instead.
+
+- name: Build the Agent-based Installer boot media
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - "{{ cluster_dir }}/vars/cluster.yaml"
+  vars:
+    abi_target: image
+    output_dir: "{{ cluster_dir }}/output"
+    work_dir: "{{ output_dir }}/{{ abi_target }}"
+    manifests_dir: "{{ cluster_dir }}/manifests"
+    force: false
+    openshift_install_bin: ''
+    openshift_install_download: false
+    openshift_clients_cache: "{{ lookup('env', 'HOME') }}/.cache/openshift-clients"
+    openshift_mirror_base: https://mirror.openshift.com/pub/openshift-v4
+    clients_fips: false
+    allow_version_mismatch: false
+    openshift_install_log_level: info
+
+  tasks:
+    - name: abi_target must be a supported `openshift-install agent create` target
+      assert:
+        that: abi_target in ['image', 'pxe-files']
+        fail_msg: "abi_target must be image or pxe-files, got '{{ abi_target }}'."
+
+    - name: Look for the generated install-config.yaml / agent-config.yaml
+      stat:
+        path: "{{ output_dir }}/{{ item }}"
+      loop:
+        - install-config.yaml
+        - agent-config.yaml
+      register: abi_inputs
+
+    - name: Both config files must exist
+      assert:
+        that: abi_inputs.results | rejectattr('stat.exists') | list | length == 0
+        fail_msg: >-
+          Missing {{ abi_inputs.results | rejectattr('stat.exists') | map(attribute='item') | join(', ') }}
+          in {{ output_dir }} - run ./run-cluster.sh <cluster-name> agent-config first.
+
+    # ---- resolve the openshift-install binary ------------------------------
+
+    - name: Download the matching openshift-install into the shared clients cache
+      when:
+        - openshift_install_bin | length == 0
+        - openshift_install_download | bool
+      block:
+        - name: Downloading requires ocp_version in vars/cluster.yaml
+          assert:
+            that: ocp_version is defined and (ocp_version | string | length > 0)
+            fail_msg: >-
+              openshift_install_download=true needs ocp_version (e.g. 4.20.13)
+              in {{ cluster_dir }}/vars/cluster.yaml.
+
+        - name: Fetch it (skipped when already cached)
+          include_tasks: tasks/download_clients.yaml
+          vars:
+            clients_version: "{{ ocp_version | string }}"
+            openshift_clients: [openshift-install]
+            clients_skip_missing: false
+
+        - name: Use the cached binary
+          set_fact:
+            openshift_install_bin: "{{ clients_installed['openshift-install'] }}"
+
+    - name: Find openshift-install in PATH (version-suffixed name first)
+      shell: |
+        {% if ocp_version is defined %}
+        c={{ (openshift_clients_cache ~ '/' ~ ocp_version ~ '/openshift-install') | quote }}
+        [ -x "$c" ] && echo "$c" && exit 0
+        {% endif %}
+        for c in {{ ('openshift-install-' ~ ocp_version) | quote if ocp_version is defined else '' }} openshift-install; do
+          command -v "$c" && exit 0
+        done
+        exit 1
+      register: oi_lookup
+      changed_when: false
+      failed_when: false
+      when: openshift_install_bin | length == 0
+
+    - name: An openshift-install binary is required
+      assert:
+        that: openshift_install_bin | length > 0 or oi_lookup.rc == 0
+        fail_msg: >-
+          No openshift-install found in the clients cache or PATH. Run
+          ./run-cluster.sh {{ cluster_dir | basename }} clients, pass
+          -e openshift_install_download=true, or
+          -e openshift_install_bin=/path/to/openshift-install.
+
+    - name: Record the binary to use
+      set_fact:
+        openshift_install_bin: "{{ openshift_install_bin if openshift_install_bin | length > 0 else oi_lookup.stdout_lines[0] }}"
+
+    - name: Read openshift-install's version
+      command: "{{ openshift_install_bin }} version"
+      register: oi_version_out
+      changed_when: false
+
+    - name: Parse it
+      set_fact:
+        oi_version: "{{ oi_version_out.stdout_lines[0].split()[-1] }}"
+
+    - name: openshift-install version must match ocp_version (it is the release that gets installed)
+      assert:
+        that: >-
+          ocp_version is not defined
+          or (ocp_version | string) == oi_version
+          or allow_version_mismatch | bool
+        fail_msg: >-
+          {{ openshift_install_bin }} is {{ oi_version }} but
+          {{ cluster_dir }}/vars/cluster.yaml has ocp_version {{ ocp_version | default('') }}.
+          The ISO would install {{ oi_version }}. Use
+          -e openshift_install_download=true, point
+          -e openshift_install_bin at the {{ ocp_version | default('') }} client,
+          or -e allow_version_mismatch=true if that is intended.
+
+    # ---- preflight ----------------------------------------------------------
+
+    - name: Check for nmstatectl (openshift-install uses it to validate static networkConfig)
+      shell: command -v nmstatectl
+      register: nmstatectl_lookup
+      changed_when: false
+      failed_when: false
+
+    - name: Warn when static networking is configured but nmstatectl is missing
+      debug:
+        msg: >-
+          WARNING: agent-config.yaml has networkConfig but nmstatectl is not
+          in PATH - openshift-install may fail validating it. Install the
+          nmstate package (provides /usr/bin/nmstatectl) on this host.
+      when:
+        - nmstatectl_lookup.rc != 0
+        - (lookup('file', output_dir ~ '/agent-config.yaml') | from_yaml).hosts | default([])
+          | selectattr('networkConfig', 'defined') | list | length > 0
+
+    # ---- work dir -----------------------------------------------------------
+
+    - name: Look at the existing work dir
+      find:
+        paths: "{{ work_dir }}"
+        hidden: true
+        file_type: any
+      register: work_dir_contents
+      failed_when: false
+
+    - name: Refuse to reuse a non-empty work dir unless force=true
+      assert:
+        that: work_dir_contents.matched | default(0) == 0 or force | bool
+        fail_msg: >-
+          {{ work_dir }} already has content (a previous build, including
+          that cluster's auth/kubeconfig). Re-run with -e force=true to move
+          it aside to {{ work_dir }}.bak.<timestamp> and build again.
+
+    - name: Move the previous work dir aside (force=true)
+      command: mv {{ work_dir | quote }} {{ (work_dir ~ '.bak.' ~ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ')) | quote }}
+      when: work_dir_contents.matched | default(0) > 0
+
+    - name: Create a fresh work dir
+      file:
+        path: "{{ work_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: Copy the config files in (openshift-install consumes them)
+      copy:
+        src: "{{ output_dir }}/{{ item }}"
+        dest: "{{ work_dir }}/{{ item }}"
+        mode: "0640"
+      loop:
+        - install-config.yaml
+        - agent-config.yaml
+
+    - name: Look for extra cluster manifests
+      stat:
+        path: "{{ manifests_dir }}"
+      register: manifests_stat
+
+    - name: Copy extra manifests to <work dir>/openshift/
+      copy:
+        src: "{{ manifests_dir }}/"
+        dest: "{{ work_dir }}/openshift/"
+        mode: "0640"
+      when: manifests_stat.stat.isdir | default(false)
+
+    # ---- build --------------------------------------------------------------
+
+    - name: Run openshift-install agent create {{ abi_target }} ({{ oi_version }})
+      command: >-
+        {{ openshift_install_bin }} agent create {{ abi_target }}
+        --dir {{ work_dir }} --log-level {{ openshift_install_log_level }}
+      register: oi_create
+
+    - name: Find the produced boot media
+      find:
+        paths: "{{ work_dir }}"
+        patterns: ["*.iso", "boot-artifacts"]
+        file_type: any
+      register: abi_media
+
+    - name: Done
+      debug:
+        msg:
+          - "openshift-install {{ oi_version }} ({{ openshift_install_bin }})"
+          - "Boot media: {{ abi_media.files | map(attribute='path') | join(', ') }}"
+          - "Kubeconfig: {{ work_dir }}/auth/kubeconfig"
+          - "Log:        {{ work_dir }}/.openshift_install.log"
