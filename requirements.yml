@@ -1,0 +1,9 @@
+---
+# Optional: lab helpers from lab-automation (only needed for create-lab-vms.yaml).
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+# The lab-automation repo is private: use a git credential / GH_TOKEN (or an AAP SCM credential).
+collections:
+  - name: https://github.com/openshift-dot-training/lab-automation.git#/ansible_collections/openshift_dot_training/lab
+    type: git
+    version: main
+  - name: ansible.posix

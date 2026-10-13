@@ -1,0 +1,22 @@
+---
+# Lab only: create the EMPTY KVM VMs that a sushy-tools cluster inventory (e.g. clusters/ocp-lab-kvm) points at,
+# with role openshift_dot_training.lab.libvirt_vms (see requirements.yml). The VMs stay off; this repo's normal
+# flow then discovers them through sushy-tools Redfish (/redfish/v1/Systems/<domain>) and renders agent-config /
+# ACM manifests. The result file lists domain, uuid, MACs and the Redfish URL of each VM.
+#
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#   ansible-playbook -i <kvm-host>, create-lab-vms.yaml -e @clusters/<name>/vars/lab-vms.yaml
+#
+# clusters/<name>/vars/lab-vms.yaml example:
+#   libvirt_vms_bridge: bridge0
+#   libvirt_vms_redfish_base: https://kvm.example.com:8000
+#   libvirt_vms_output_file: clusters/<name>/output/lab-vms.yaml
+#   libvirt_vms:
+#     - {name: kvm-node01, vcpus: 8, memory_mb: 24576, disks_gb: [120], nics: [{bridge: bridge0, mac: random}]}
+#     - {name: kvm-node02, vcpus: 8, memory_mb: 24576, disks_gb: [120], nics: [{bridge: bridge0, mac: random}]}
+- name: Empty lab VMs on a KVM host
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - openshift_dot_training.lab.libvirt_vms
