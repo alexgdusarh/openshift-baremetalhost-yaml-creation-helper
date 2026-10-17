@@ -8,6 +8,7 @@
 #
 # Patches, under clusters/<cluster-name>/output/:
 #   install-config.yaml   .pullSecret, .sshKey
+#   nodes-config.yaml     .sshKey
 #   acm/cluster.yaml      every kubernetes.io/dockerconfigjson Secret's
 #                         .data[".dockerconfigjson"] (base64), InfraEnv
 #                         .spec.sshAuthorizedKey, AgentClusterInstall
@@ -85,7 +86,7 @@ grep -qE '^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-[a-z0-9]+|sk-[a-z0-9@.-]+) AAAA' "$
 
 # --- collect targets and make sure git will never pick them up ------------
 targets=()
-for f in "$out_dir/install-config.yaml" "$out_dir/acm/cluster.yaml"; do
+for f in "$out_dir/install-config.yaml" "$out_dir/nodes-config.yaml" "$out_dir/acm/cluster.yaml"; do
   [[ -f "$f" ]] && targets+=("$f")
 done
 [[ ${#targets[@]} -gt 0 ]] || die "no install-config.yaml or acm/cluster.yaml under $out_dir"
@@ -109,6 +110,9 @@ for f in "${targets[@]}"; do
         .pullSecret = (load_str(strenv(PULL_SECRET_FILE)) | trim) |
         .sshKey = (load_str(strenv(SSH_KEY_FILE)) | trim)
       ' "$f"
+      ;;
+    */nodes-config.yaml)
+      "$YQ" -i '.sshKey = (load_str(strenv(SSH_KEY_FILE)) | trim)' "$f"
       ;;
     */acm/cluster.yaml)
       "$YQ" -i '

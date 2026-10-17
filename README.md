@@ -367,20 +367,26 @@ not as separate `/dev/sdX` or `by-path` entries.
 
 `generate-agent-config.yaml` is a second, independent playbook that reads
 `<cluster_dir>/output/hw_inventory.yaml` (written by `playbook.yaml` above)
-and renders **two** OpenShift installer files in one run: an Agent-based
-Installer `agent-config.yaml`, and an `install-config.yaml` (the
+and renders **three** OpenShift installer files in one run: an Agent-based
+Installer `agent-config.yaml`, an `install-config.yaml` (the
 cluster-shape manifest — network CIDRs, VIPs, pull secret, SSH key — that
-accompanies it). Run the discovery playbook first, edit the vars files
+accompanies it), and a `nodes-config.yaml` for adding the same hosts to an
+already installed cluster with `oc adm node-image create`. Its `hosts:`
+entries are the same as `agent-config.yaml`'s (one nmstate definition for
+both, and for the ACM `NMStateConfig` CRs), all hosts in one file, plus
+`sshKey`. Run the discovery playbook first, edit the vars files
 below, then:
 
 ```
 ./run-cluster.sh <cluster-name> agent-config
 ```
 
-Output: `<cluster_dir>/output/agent-config.yaml` and
-`<cluster_dir>/output/install-config.yaml`. Full worked examples (3
-masters + 1 worker) are in `clusters/ocp-lab/output/agent-config.example.yaml`
-and `clusters/ocp-lab/output/install-config.example.yaml`.
+Output: `<cluster_dir>/output/agent-config.yaml`,
+`<cluster_dir>/output/install-config.yaml` and
+`<cluster_dir>/output/nodes-config.yaml`. Full worked examples (3
+masters + 1 worker) are in `clusters/ocp-lab/output/agent-config.example.yaml`,
+`clusters/ocp-lab/output/install-config.example.yaml` and
+`clusters/ocp-lab/output/nodes-config.example.yaml`.
 
 ### Inputs you edit
 
@@ -948,6 +954,7 @@ cp pull-secret.txt ~/.openshift/pull-secret.txt && chmod 600 ~/.openshift/pull-s
 | File | Fields `inject-secrets.sh` fills in |
 |---|---|
 | `output/install-config.yaml` | `pullSecret`, `sshKey` |
+| `output/nodes-config.yaml` | `sshKey` |
 | `output/acm/cluster.yaml` | both `kubernetes.io/dockerconfigjson` Secrets' `.dockerconfigjson` (base64), `InfraEnv` `spec.sshAuthorizedKey`, `AgentClusterInstall` `spec.sshPublicKey` |
 
 - Defaults are `~/.openshift/pull-secret.txt` and `~/.ssh/id_rsa.pub`;
@@ -1015,6 +1022,7 @@ redfish-hw-inventory/
     │       ├── hw_inventory.example.yaml
     │       ├── agent-config.example.yaml
     │       ├── install-config.example.yaml
+    │       ├── nodes-config.example.yaml
     │       └── acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)
     └── ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet
         ├── inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)
@@ -1023,6 +1031,7 @@ redfish-hw-inventory/
             ├── hw_inventory.example.yaml
             ├── agent-config.example.yaml
             ├── install-config.example.yaml
+            ├── nodes-config.example.yaml
             └── acm/
 ```
 
