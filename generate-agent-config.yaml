@@ -284,12 +284,11 @@
 
     # oc adm node-image create (adding nodes to an installed cluster) reads
     # nodes-config.yaml: the same host entries as agent-config.yaml - one
-    # nmstate definition for both - every discovered host in one file, plus
-    # the SSH key the new nodes accept.
+    # nmstate definition for both - every discovered host in one file.
     - name: Write nodes-config.yaml
       copy:
         dest: "{{ cluster_dir }}/output/nodes-config.yaml"
-        content: "{{ {'hosts': agent_hosts, 'sshKey': ssh_key} | to_nice_yaml(indent=2, width=120, sort_keys=False) }}"
+        content: "{{ {'hosts': agent_hosts} | to_nice_yaml(indent=2, width=120, sort_keys=False) }}"
 
     - name: Show warnings that need manual review, if any
       debug:

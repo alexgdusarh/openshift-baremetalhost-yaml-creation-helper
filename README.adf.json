@@ -4060,20 +4060,7 @@
         },
         {
           "type": "text",
-          "text": " CRs), all hosts in one file, plus "
-        },
-        {
-          "type": "text",
-          "text": "sshKey",
-          "marks": [
-            {
-              "type": "code"
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "text": ". Run the discovery playbook first, edit the vars files below, then:"
+          "text": " CRs), all hosts in one file. Run the discovery playbook first, edit the vars files below, then:"
         }
       ]
     },
@@ -10860,51 +10847,6 @@
                       "type": "text",
                       "text": ", "
                     },
-                    {
-                      "type": "text",
-                      "text": "sshKey",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "tableRow",
-          "content": [
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "output/nodes-config.yaml",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
                     {
                       "type": "text",
                       "text": "sshKey",

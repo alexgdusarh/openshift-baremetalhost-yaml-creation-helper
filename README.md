@@ -373,8 +373,7 @@ cluster-shape manifest — network CIDRs, VIPs, pull secret, SSH key — that
 accompanies it), and a `nodes-config.yaml` for adding the same hosts to an
 already installed cluster with `oc adm node-image create`. Its `hosts:`
 entries are the same as `agent-config.yaml`'s (one nmstate definition for
-both, and for the ACM `NMStateConfig` CRs), all hosts in one file, plus
-`sshKey`. Run the discovery playbook first, edit the vars files
+both, and for the ACM `NMStateConfig` CRs), all hosts in one file. Run the discovery playbook first, edit the vars files
 below, then:
 
 ```
@@ -954,7 +953,6 @@ cp pull-secret.txt ~/.openshift/pull-secret.txt && chmod 600 ~/.openshift/pull-s
 | File | Fields `inject-secrets.sh` fills in |
 |---|---|
 | `output/install-config.yaml` | `pullSecret`, `sshKey` |
-| `output/nodes-config.yaml` | `sshKey` |
 | `output/acm/cluster.yaml` | both `kubernetes.io/dockerconfigjson` Secrets' `.dockerconfigjson` (base64), `InfraEnv` `spec.sshAuthorizedKey`, `AgentClusterInstall` `spec.sshPublicKey` |
 
 - Defaults are `~/.openshift/pull-secret.txt` and `~/.ssh/id_rsa.pub`;

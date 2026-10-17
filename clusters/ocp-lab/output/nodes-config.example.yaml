@@ -247,4 +247,3 @@ hosts:
         next-hop-address: 10.10.10.1
         next-hop-interface: bond0
         table-id: 254
-sshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key

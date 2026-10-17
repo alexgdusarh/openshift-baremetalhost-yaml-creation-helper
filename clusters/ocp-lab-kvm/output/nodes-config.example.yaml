@@ -127,4 +127,3 @@ hosts:
         next-hop-address: 192.168.122.1
         next-hop-interface: enp1s0
         table-id: 254
-sshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key
