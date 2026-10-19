@@ -8073,6 +8073,69 @@
                   "content": [
                     {
                       "type": "text",
+                      "text": "failure_domains",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "1 to n failure domains (usually 3, for HA), each "
+                    },
+                    {
+                      "type": "text",
+                      "text": "name",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "region",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "zone",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
                       "text": "datacenter",
                       "marks": [
                         {
@@ -8121,31 +8184,7 @@
                     },
                     {
                       "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "resource_pool",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "VM placement; "
+                      "text": ", optional "
                     },
                     {
                       "type": "text",
@@ -8158,11 +8197,24 @@
                     },
                     {
                       "type": "text",
-                      "text": " defaults to "
+                      "text": " (default "
                     },
                     {
                       "type": "text",
                       "text": "<compute_cluster>/Resources",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ") and "
+                    },
+                    {
+                      "type": "text",
+                      "text": "folder",
                       "marks": [
                         {
                           "type": "code"
@@ -8208,6 +8260,46 @@
                     {
                       "type": "text",
                       "text": "the extra address for the temporary bootstrap VM"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "bootstrap_failure_domain",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "optional; default the first failure domain"
                     }
                   ]
                 }
@@ -8315,59 +8407,6 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "feature_set",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "optional, e.g. "
-                    },
-                    {
-                      "type": "text",
-                      "text": "TechPreviewNoUpgrade",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": " on releases that still gate static IPs (it blocks upgrades)"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "tableRow",
-          "content": [
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
                       "text": "publish",
                       "marks": [
                         {
@@ -8430,202 +8469,6 @@
               ]
             }
           ]
-        },
-        {
-          "type": "tableRow",
-          "content": [
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "failure_domains",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "optional list for several vSphere zones ("
-                    },
-                    {
-                      "type": "text",
-                      "text": "name",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "region",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "zone",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "datacenter",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "compute_cluster",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "datastore",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "networks",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", optional "
-                    },
-                    {
-                      "type": "text",
-                      "text": "resource_pool",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "folder",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "server",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": "); set "
-                    },
-                    {
-                      "type": "text",
-                      "text": "vsphere_failure_domain:",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": " per host in the inventory and "
-                    },
-                    {
-                      "type": "text",
-                      "text": "bootstrap_failure_domain:",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": " here"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
         }
       ]
     },
@@ -8673,7 +8516,103 @@
         },
         {
           "type": "text",
-          "text": " and that no two of them share an address."
+          "text": ", that no two of them share an address, and that every failure domain is complete and every name used exists."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "With one failure domain, the host entries carry no "
+        },
+        {
+          "type": "text",
+          "text": "failureDomain",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". With several, each entry gets one: the host's "
+        },
+        {
+          "type": "text",
+          "text": "vsphere_failure_domain:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " from "
+        },
+        {
+          "type": "text",
+          "text": "inventory/hosts.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " if set, otherwise round-robin within its role (first master to the first domain, second master to the second, ...), which is how the installer itself spreads the control-plane machines and the worker replicas. Several failure domains also need vCenter-side setup that this automation doesn't do: the "
+        },
+        {
+          "type": "text",
+          "text": "openshift-region",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "openshift-zone",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " tag categories, with each domain's region tag on its datacenter and zone tag on its compute cluster."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Static IPs on vSphere IPI are fully supported, so no "
+        },
+        {
+          "type": "text",
+          "text": "featureSet",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is written."
         }
       ]
     },

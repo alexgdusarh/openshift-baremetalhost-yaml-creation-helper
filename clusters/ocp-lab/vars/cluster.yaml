@@ -159,14 +159,7 @@ vsphere:
   port: 443
   username: administrator@vsphere.local
   password: "CHANGE_ME"          # vault it: ansible-vault encrypt_string
-  datacenter: Datacenter
-  compute_cluster: /Datacenter/host/Cluster
-  datastore: /Datacenter/datastore/datastore1
-  networks:
-    - VM Network
-  # resource_pool: /Datacenter/host/Cluster/Resources   # default: <compute_cluster>/Resources
   bootstrap_ip: 10.10.10.30      # extra address for the temporary bootstrap VM
-  # feature_set: TechPreviewNoUpgrade   # only if your release still gates static IPs
   control_plane:
     cpus: 8
     cores_per_socket: 4
@@ -175,14 +168,35 @@ vsphere:
     cpus: 16
     cores_per_socket: 8
     memory_mb: 65536
-  # Several vSphere zones: list them instead of compute_cluster/datastore/
-  # networks above, and set vsphere_failure_domain: <name> on each host in
-  # inventory/hosts.yaml (bootstrap_failure_domain: for the bootstrap).
-  # failure_domains:
-  #   - name: fd-1
-  #     region: region-a
-  #     zone: zone-1
-  #     datacenter: Datacenter
-  #     compute_cluster: /Datacenter/host/Cluster1
-  #     datastore: /Datacenter/datastore/ds1
-  #     networks: [VM Network]
+  # 1 to n failure domains (usually 3 for HA). With more than one, the
+  # masters and workers are spread round-robin across them unless a host
+  # sets vsphere_failure_domain: <name> in inventory/hosts.yaml (the
+  # bootstrap: bootstrap_failure_domain: here). Several domains also need
+  # the openshift-region/openshift-zone tags in vCenter.
+  failure_domains:
+    - name: CHANGE_ME-fd-1
+      region: CHANGE_ME-region
+      zone: CHANGE_ME-zone-1
+      datacenter: CHANGE_ME-Datacenter
+      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1
+      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-1
+      networks:
+        - CHANGE_ME-VM-Network
+      # resource_pool: <compute_cluster>/Resources (default)
+      # folder: /CHANGE_ME-Datacenter/vm/CHANGE_ME-folder (optional)
+    - name: CHANGE_ME-fd-2
+      region: CHANGE_ME-region
+      zone: CHANGE_ME-zone-2
+      datacenter: CHANGE_ME-Datacenter
+      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2
+      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-2
+      networks:
+        - CHANGE_ME-VM-Network
+    - name: CHANGE_ME-fd-3
+      region: CHANGE_ME-region
+      zone: CHANGE_ME-zone-3
+      datacenter: CHANGE_ME-Datacenter
+      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3
+      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-3
+      networks:
+        - CHANGE_ME-VM-Network

@@ -36,6 +36,7 @@ platform:
   vsphere:
     hosts:
     - role: bootstrap
+      failureDomain: CHANGE_ME-fd-1
       networkDevice:
         ipAddrs:
         - 10.10.10.30/24
@@ -43,6 +44,7 @@ platform:
         nameservers:
         - 10.10.10.1
     - role: control-plane
+      failureDomain: CHANGE_ME-fd-1
       networkDevice:
         ipAddrs:
         - 10.10.10.11/24
@@ -50,6 +52,7 @@ platform:
         nameservers:
         - 10.10.10.1
     - role: control-plane
+      failureDomain: CHANGE_ME-fd-2
       networkDevice:
         ipAddrs:
         - 10.10.10.12/24
@@ -57,6 +60,7 @@ platform:
         nameservers:
         - 10.10.10.1
     - role: control-plane
+      failureDomain: CHANGE_ME-fd-3
       networkDevice:
         ipAddrs:
         - 10.10.10.13/24
@@ -64,6 +68,7 @@ platform:
         nameservers:
         - 10.10.10.1
     - role: compute
+      failureDomain: CHANGE_ME-fd-1
       networkDevice:
         ipAddrs:
         - 10.10.10.14/24
@@ -73,22 +78,44 @@ platform:
     apiVIPs:
     - 10.10.10.10
     failureDomains:
-    - name: generated-failure-domain
-      region: generated-region
+    - name: CHANGE_ME-fd-1
+      region: CHANGE_ME-region
       server: vcenter.example.com
       topology:
-        computeCluster: /Datacenter/host/Cluster
-        datacenter: Datacenter
-        datastore: /Datacenter/datastore/datastore1
+        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1
+        datacenter: CHANGE_ME-Datacenter
+        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-1
         networks:
-        - VM Network
-        resourcePool: /Datacenter/host/Cluster/Resources
-      zone: generated-zone
+        - CHANGE_ME-VM-Network
+        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1/Resources
+      zone: CHANGE_ME-zone-1
+    - name: CHANGE_ME-fd-2
+      region: CHANGE_ME-region
+      server: vcenter.example.com
+      topology:
+        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2
+        datacenter: CHANGE_ME-Datacenter
+        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-2
+        networks:
+        - CHANGE_ME-VM-Network
+        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2/Resources
+      zone: CHANGE_ME-zone-2
+    - name: CHANGE_ME-fd-3
+      region: CHANGE_ME-region
+      server: vcenter.example.com
+      topology:
+        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3
+        datacenter: CHANGE_ME-Datacenter
+        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-3
+        networks:
+        - CHANGE_ME-VM-Network
+        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3/Resources
+      zone: CHANGE_ME-zone-3
     ingressVIPs:
     - 10.10.10.9
     vcenters:
     - datacenters:
-      - Datacenter
+      - CHANGE_ME-Datacenter
       password: CHANGE_ME
       port: 443
       server: vcenter.example.com

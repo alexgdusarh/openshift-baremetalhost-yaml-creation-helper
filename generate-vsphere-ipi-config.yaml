@@ -6,8 +6,9 @@
 # masters/workers groups and each host's `ip` in inventory/hosts.yaml, and
 # cluster_name, base_domain, gateway, dns, network_profile.prefix_length,
 # machine_network_cidr, api_vips, ingress_vips, pull_secret and ssh_key in
-# vars/cluster.yaml. The vSphere-only settings (vCenter, placement, bootstrap
-# IP, VM sizes) come from the `vsphere:` block of vars/cluster.yaml - see
+# vars/cluster.yaml. The vSphere-only settings (vCenter, 1 to n failure
+# domains, bootstrap IP, VM sizes) come from the `vsphere:` block of
+# vars/cluster.yaml - see
 # README.md's "vSphere IPI with static IPs" section. No hardware discovery
 # is needed: these are VMs.
 #
@@ -18,9 +19,11 @@
 # install-config.yaml of the directory it runs in.
 #
 # platform.vsphere.hosts lists the bootstrap, then the masters and the
-# workers in inventory order; the installer gives the Nth control-plane
-# entry to <infraID>-master-N. It has no hostname field: node names are the
-# VM names the installer generates.
+# workers in inventory order. With more than one failure domain each entry
+# gets one: the host's vsphere_failure_domain inventory var, else round-robin
+# over the list per role (the bootstrap: bootstrap_failure_domain, else the
+# first). It has no hostname field: node names are the VM names the
+# installer generates.
 
 - name: Validate inputs before loading any cluster-specific vars files
   hosts: localhost
@@ -46,13 +49,7 @@
     output_dir: "{{ cluster_dir }}/output/vsphere-ipi"
     masters: "{{ groups.get('masters', []) }}"
     workers: "{{ groups.get('workers', []) }}"
-    # One failure domain from the vsphere: block unless it lists its own.
-    vsphere_failure_domains: >-
-      {{ vsphere.failure_domains | default([{
-           'name': 'generated-failure-domain', 'region': 'generated-region', 'zone': 'generated-zone',
-           'datacenter': vsphere.datacenter, 'compute_cluster': vsphere.compute_cluster,
-           'datastore': vsphere.datastore, 'networks': vsphere.networks,
-           'resource_pool': vsphere.resource_pool | default(none)}]) }}
+    failure_domain_keys: [name, region, zone, datacenter, compute_cluster, datastore, networks]
 
   tasks:
     - name: vars/cluster.yaml has everything the vSphere install-config needs
@@ -67,18 +64,39 @@
           - pull_secret is defined and ssh_key is defined
           - vsphere is defined
           - vsphere.vcenter is defined and vsphere.username is defined and vsphere.password is defined
-          - vsphere.datacenter is defined
           - vsphere.bootstrap_ip is defined
-          - vsphere.failure_domains is defined or
-            (vsphere.compute_cluster is defined and vsphere.datastore is defined and vsphere.networks is defined)
+          - vsphere.failure_domains | default([]) | length > 0
           - masters | length > 0
         fail_msg: >-
           {{ cluster_dir }}/vars/cluster.yaml needs base_domain, machine_network_cidr,
           api_vips, ingress_vips, gateway, dns.server, network_profile.prefix_length,
           pull_secret, ssh_key and a vsphere: block (vcenter, username, password,
-          datacenter, bootstrap_ip, and compute_cluster/datastore/networks or
-          failure_domains), and the inventory needs a masters group - see README.md's
-          "vSphere IPI with static IPs".
+          bootstrap_ip and a failure_domains list of 1 to n entries), and the
+          inventory needs a masters group - see README.md's "vSphere IPI with static IPs".
+
+    - name: Every failure domain has its required keys and a unique name
+      assert:
+        that:
+          - failure_domain_keys | reject('in', item) | list | length == 0
+          - vsphere.failure_domains | selectattr('name', 'equalto', item.name) | list | length == 1
+        fail_msg: >-
+          vsphere.failure_domains entry {{ item.name | default(item) }} needs a unique name and
+          {{ failure_domain_keys | join(', ') }}; missing: {{ failure_domain_keys | reject('in', item) | list }}
+      loop: "{{ vsphere.failure_domains }}"
+      loop_control:
+        label: "{{ item.name | default('?') }}"
+
+    - name: Failure domains set on hosts exist in vsphere.failure_domains
+      vars:
+        fd_names: "{{ vsphere.failure_domains | map(attribute='name') | list }}"
+        set_names: >-
+          {{ ([vsphere.bootstrap_failure_domain] if vsphere.bootstrap_failure_domain is defined else [])
+             + (masters + workers) | map('extract', hostvars) | selectattr('vsphere_failure_domain', 'defined')
+               | map(attribute='vsphere_failure_domain') | list }}
+      assert:
+        that:
+          - set_names | reject('in', fd_names) | list | length == 0
+        fail_msg: "Unknown failure domain(s) {{ set_names | reject('in', fd_names) | list }}; defined: {{ fd_names }}"
 
     - name: Every node has an IP inside machine_network_cidr
       assert:
@@ -111,6 +129,7 @@
         bootstrap_host:
           ip: "{{ vsphere.bootstrap_ip }}"
           vsphere_failure_domain: "{{ vsphere.bootstrap_failure_domain | default('') }}"
+        fd_names: "{{ vsphere.failure_domains | map(attribute='name') | list }}"
       set_fact:
         vsphere_install_config: >-
           {{
@@ -119,7 +138,6 @@
               'apiVersion': 'v1',
               'baseDomain': base_domain,
             }
-            | combine({'featureSet': vsphere.feature_set} if vsphere.feature_set | default('') | length > 0 else {})
             | combine({
               'compute': [{
                 'architecture': vsphere.architecture | default('amd64'),
@@ -151,12 +169,13 @@
               },
               'platform': {'vsphere': {
                 'hosts': bootstrap_host | vsphere_static_hosts(masters, workers, hostvars,
-                                                               gateway, dns.server, network_profile.prefix_length),
+                                                               gateway, dns.server, network_profile.prefix_length,
+                                                               fd_names),
                 'apiVIPs': api_vips,
-                'failureDomains': vsphere_failure_domains | map('vsphere_failure_domain', vsphere.vcenter) | list,
+                'failureDomains': vsphere.failure_domains | map('vsphere_failure_domain', vsphere.vcenter) | list,
                 'ingressVIPs': ingress_vips,
                 'vcenters': [{
-                  'datacenters': vsphere_failure_domains | map(attribute='datacenter') | unique | list,
+                  'datacenters': vsphere.failure_domains | map(attribute='datacenter') | unique | list,
                   'password': vsphere.password,
                   'port': vsphere.port | default(443) | int,
                   'server': vsphere.vcenter,
