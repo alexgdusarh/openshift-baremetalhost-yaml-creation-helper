@@ -1,20 +1,21 @@
 ---
-# generate-vsphere-ipi-config.yaml
+# generate-vsphere-ipi-fix-ips-config.yaml
 #
 # Renders an install-config.yaml for a vSphere IPI install with fixed
-# (static) node IPs, from the same cluster data as generate-agent-config.yaml:
+# (static) node IPs - the platform.vsphere.hosts network definitions a plain
+# vSphere IPI install doesn't have - from the same cluster data as generate-agent-config.yaml:
 # masters/workers groups and each host's `ip` in inventory/hosts.yaml, and
 # cluster_name, base_domain, gateway, dns, network_profile.prefix_length,
 # machine_network_cidr, api_vips, ingress_vips, pull_secret and ssh_key in
-# vars/cluster.yaml. The vSphere-only settings (vCenter, 1 to n failure
-# domains, bootstrap IP, VM sizes) come from the `vsphere:` block of
-# vars/cluster.yaml - see
-# README.md's "vSphere IPI with static IPs" section. No hardware discovery
+# vars/cluster.yaml. The vSphere-only settings (1 to n vCenters, 1 to n
+# failure domains each on one of them, bootstrap IP, VM sizes) come from the
+# `vsphere:` block of vars/cluster.yaml - see README.md's "vSphere IPI with
+# fixed IPs" section. No hardware discovery
 # is needed: these are VMs.
 #
-#   ./run-cluster.sh <cluster-name> vsphere-ipi
+#   ./run-cluster.sh <cluster-name> vsphere-ipi-fix-ips
 #
-# Output: <cluster_dir>/output/vsphere-ipi/install-config.yaml, in its own
+# Output: <cluster_dir>/output/vsphere-ipi-fix-ips/install-config.yaml, in its own
 # directory because openshift-install consumes (and deletes) the
 # install-config.yaml of the directory it runs in.
 #
@@ -37,7 +38,7 @@
           - cluster_dir | length > 0
         fail_msg: >-
           cluster_dir is required, e.g. -e cluster_dir=clusters/ocp-lab -
-          or use ./run-cluster.sh ocp-lab vsphere-ipi instead.
+          or use ./run-cluster.sh ocp-lab vsphere-ipi-fix-ips instead.
 
 - name: Render a vSphere IPI install-config.yaml with static IPs
   hosts: localhost
@@ -46,10 +47,15 @@
   vars_files:
     - "{{ cluster_dir }}/vars/cluster.yaml"
   vars:
-    output_dir: "{{ cluster_dir }}/output/vsphere-ipi"
+    output_dir: "{{ cluster_dir }}/output/vsphere-ipi-fix-ips"
     masters: "{{ groups.get('masters', []) }}"
     workers: "{{ groups.get('workers', []) }}"
-    failure_domain_keys: [name, region, zone, datacenter, compute_cluster, datastore, networks]
+    vcenter_keys: [server, username, password]
+    failure_domain_keys: [name, region, zone, server, datacenter, compute_cluster, datastore, networks]
+    # Each failure domain names its vCenter (`server`); with a single vCenter
+    # it may leave it out.
+    failure_domains: "{{ vsphere.failure_domains | default([]) | vsphere_failure_domain_servers(vsphere.vcenters | default([])) }}"
+    vcenter_servers: "{{ vsphere.vcenters | default([]) | map(attribute='server') | list }}"
 
   tasks:
     - name: vars/cluster.yaml has everything the vSphere install-config needs
@@ -63,32 +69,49 @@
           - network_profile.prefix_length is defined
           - pull_secret is defined and ssh_key is defined
           - vsphere is defined
-          - vsphere.vcenter is defined and vsphere.username is defined and vsphere.password is defined
+          - vsphere.vcenters | default([]) | length > 0
           - vsphere.bootstrap_ip is defined
           - vsphere.failure_domains | default([]) | length > 0
           - masters | length > 0
         fail_msg: >-
           {{ cluster_dir }}/vars/cluster.yaml needs base_domain, machine_network_cidr,
           api_vips, ingress_vips, gateway, dns.server, network_profile.prefix_length,
-          pull_secret, ssh_key and a vsphere: block (vcenter, username, password,
-          bootstrap_ip and a failure_domains list of 1 to n entries), and the
-          inventory needs a masters group - see README.md's "vSphere IPI with static IPs".
+          pull_secret, ssh_key and a vsphere: block (a vcenters list of 1 to n,
+          bootstrap_ip and a failure_domains list of 1 to n), and the inventory
+          needs a masters group - see README.md's "vSphere IPI with fixed IPs".
 
-    - name: Every failure domain has its required keys and a unique name
+    - name: Every failure domain is complete, uniquely named and on a listed vCenter
       assert:
         that:
           - failure_domain_keys | reject('in', item) | list | length == 0
-          - vsphere.failure_domains | selectattr('name', 'equalto', item.name) | list | length == 1
+          - failure_domains | selectattr('name', 'equalto', item.name) | list | length == 1
+          - item.server in vcenter_servers
         fail_msg: >-
-          vsphere.failure_domains entry {{ item.name | default(item) }} needs a unique name and
-          {{ failure_domain_keys | join(', ') }}; missing: {{ failure_domain_keys | reject('in', item) | list }}
-      loop: "{{ vsphere.failure_domains }}"
+          vsphere.failure_domains entry {{ item.name | default(item) }} needs a unique name,
+          {{ failure_domain_keys | join(', ') }} (missing: {{ failure_domain_keys | reject('in', item) | list }};
+          server may be left out only with a single vCenter), and its server must be one of
+          the vsphere.vcenters: {{ vcenter_servers }}.
+      loop: "{{ failure_domains }}"
       loop_control:
         label: "{{ item.name | default('?') }}"
 
+    - name: Every vCenter has a unique server, a username and a password, and hosts a failure domain
+      assert:
+        that:
+          - vcenter_keys | reject('in', item) | list | length == 0
+          - vcenter_servers | select('equalto', item.server) | list | length == 1
+          - failure_domains | selectattr('server', 'defined') | selectattr('server', 'equalto', item.server) | list | length > 0
+        fail_msg: >-
+          vsphere.vcenters entry {{ item.server | default(item) }} needs a unique server,
+          username and password (missing: {{ vcenter_keys | reject('in', item) | list }}) and at
+          least one failure domain on it (the installer needs its datacenters).
+      loop: "{{ vsphere.vcenters }}"
+      loop_control:
+        label: "{{ item.server | default('?') }}"
+
     - name: Failure domains set on hosts exist in vsphere.failure_domains
       vars:
-        fd_names: "{{ vsphere.failure_domains | map(attribute='name') | list }}"
+        fd_names: "{{ failure_domains | map(attribute='name') | list }}"
         set_names: >-
           {{ ([vsphere.bootstrap_failure_domain] if vsphere.bootstrap_failure_domain is defined else [])
              + (masters + workers) | map('extract', hostvars) | selectattr('vsphere_failure_domain', 'defined')
@@ -129,7 +152,7 @@
         bootstrap_host:
           ip: "{{ vsphere.bootstrap_ip }}"
           vsphere_failure_domain: "{{ vsphere.bootstrap_failure_domain | default('') }}"
-        fd_names: "{{ vsphere.failure_domains | map(attribute='name') | list }}"
+        fd_names: "{{ failure_domains | map(attribute='name') | list }}"
       set_fact:
         vsphere_install_config: >-
           {{
@@ -172,15 +195,9 @@
                                                                gateway, dns.server, network_profile.prefix_length,
                                                                fd_names),
                 'apiVIPs': api_vips,
-                'failureDomains': vsphere.failure_domains | map('vsphere_failure_domain', vsphere.vcenter) | list,
+                'failureDomains': failure_domains | map('vsphere_failure_domain') | list,
                 'ingressVIPs': ingress_vips,
-                'vcenters': [{
-                  'datacenters': vsphere.failure_domains | map(attribute='datacenter') | unique | list,
-                  'password': vsphere.password,
-                  'port': vsphere.port | default(443) | int,
-                  'server': vsphere.vcenter,
-                  'user': vsphere.username,
-                }],
+                'vcenters': vsphere.vcenters | vsphere_vcenters(failure_domains),
               }},
               'publish': vsphere.publish | default('External'),
               'pullSecret': pull_secret,

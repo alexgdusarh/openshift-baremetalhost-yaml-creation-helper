@@ -121,7 +121,7 @@ two ways of saying the same thing):
 ```
 ./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml
 ./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml
-./run-cluster.sh <cluster-name> vsphere-ipi      # vSphere IPI install-config.yaml with static IPs
+./run-cluster.sh <cluster-name> vsphere-ipi-fix-ips   # vSphere IPI install-config.yaml with fixed node IPs
 ./run-cluster.sh <cluster-name> all              # both, in order
 ./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version
 ./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image
@@ -597,12 +597,13 @@ Any boot-disk or bond-member-resolution problem is collected into
 `agent_config_warnings` and printed at the end of the run — check that
 output before applying the generated file.
 
-## vSphere IPI with static IPs
+## vSphere IPI with fixed IPs
 
-`generate-vsphere-ipi-config.yaml` renders the same cluster as a vSphere
-IPI install with fixed node IPs: an `install-config.yaml` whose
+`generate-vsphere-ipi-fix-ips-config.yaml` renders the same cluster as a
+vSphere IPI install with fixed node IPs: an `install-config.yaml` whose
 `platform.vsphere.hosts` gives the bootstrap VM, every master and every
-worker its static address. It reuses the cluster data the other outputs
+worker its static address (the network definitions a plain vSphere IPI
+install, with DHCP, doesn't have). It reuses the cluster data the other outputs
 use — the `masters`/`workers` groups and each host's `ip` from
 `inventory/hosts.yaml`, and `cluster_name`, `base_domain`, `gateway`,
 `dns.server`, `network_profile.prefix_length`, `machine_network_cidr`,
@@ -610,22 +611,22 @@ use — the `masters`/`workers` groups and each host's `ip` from
 `vars/cluster.yaml`. No hardware discovery is needed.
 
 ```
-./run-cluster.sh <cluster-name> vsphere-ipi
+./run-cluster.sh <cluster-name> vsphere-ipi-fix-ips
 ```
 
-Output: `<cluster_dir>/output/vsphere-ipi/install-config.yaml` (mode 600:
-it holds the vCenter password and the pull secret), in its own directory
+Output: `<cluster_dir>/output/vsphere-ipi-fix-ips/install-config.yaml`
+(mode 600: it holds the vCenter passwords and the pull secret), in its own directory
 because `openshift-install` consumes the `install-config.yaml` of the
-directory it runs in. Worked example:
-`clusters/ocp-lab/output/vsphere-ipi/install-config.example.yaml`.
+directory it runs in. Worked example (two vCenters, three failure
+domains): `clusters/ocp-lab/output/vsphere-ipi-fix-ips/install-config.example.yaml`.
 
 The vSphere-only settings go in a `vsphere:` block of `vars/cluster.yaml`
 (see `clusters/ocp-lab/vars/cluster.yaml`):
 
 | Key | Purpose |
 |---|---|
-| `vcenter`, `port` (443), `username`, `password` | vCenter connection; vault the password (`ansible-vault encrypt_string`) |
-| `failure_domains` | 1 to n failure domains (usually 3, for HA), each `name`, `region`, `zone`, `datacenter`, `compute_cluster`, `datastore`, `networks`, optional `resource_pool` (default `<compute_cluster>/Resources`) and `folder` |
+| `vcenters` | 1 to n vCenters, each `server`, `username`, `password`, optional `port` (443); vault the passwords (`ansible-vault encrypt_string`) |
+| `failure_domains` | 1 to n failure domains (usually 3, for HA), each `name`, `region`, `zone`, `server` (its vCenter; optional with a single one), `datacenter`, `compute_cluster`, `datastore`, `networks`, optional `resource_pool` (default `<compute_cluster>/Resources`) and `folder`. One vCenter can hold several (other compute clusters or datacenters) |
 | `bootstrap_ip` | the extra address for the temporary bootstrap VM |
 | `bootstrap_failure_domain` | optional; default the first failure domain |
 | `control_plane`, `compute` | VM size: `cpus`, `cores_per_socket`, `memory_mb` |
@@ -633,8 +634,10 @@ The vSphere-only settings go in a `vsphere:` block of `vars/cluster.yaml`
 
 Replicas are the sizes of the `masters` and `workers` groups. The run
 checks that every node, the bootstrap IP and the VIPs are inside
-`machine_network_cidr`, that no two of them share an address, and that
-every failure domain is complete and every name used exists.
+`machine_network_cidr`, that no two of them share an address, that every
+failure domain is complete and on a listed vCenter, that every vCenter
+hosts at least one failure domain (its `datacenters` come from them), and
+that every failure domain name used exists.
 
 With one failure domain, the host entries carry no `failureDomain`. With
 several, each entry gets one: the host's `vsphere_failure_domain:` from
@@ -1017,7 +1020,7 @@ cp pull-secret.txt ~/.openshift/pull-secret.txt && chmod 600 ~/.openshift/pull-s
 | File | Fields `inject-secrets.sh` fills in |
 |---|---|
 | `output/install-config.yaml` | `pullSecret`, `sshKey` |
-| `output/vsphere-ipi/install-config.yaml` | `pullSecret`, `sshKey` |
+| `output/vsphere-ipi-fix-ips/install-config.yaml` | `pullSecret`, `sshKey` |
 | `output/acm/cluster.yaml` | both `kubernetes.io/dockerconfigjson` Secrets' `.dockerconfigjson` (base64), `InfraEnv` `spec.sshAuthorizedKey`, `AgentClusterInstall` `spec.sshPublicKey` |
 
 - Defaults are `~/.openshift/pull-secret.txt` and `~/.ssh/id_rsa.pub`;
@@ -1051,7 +1054,7 @@ redfish-hw-inventory/
 ├── githooks/pre-commit                # blocks commits of real cluster data / secrets - see "Secrets"
 ├── playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)
 ├── generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)
-├── generate-vsphere-ipi-config.yaml   # vSphere IPI install-config.yaml with static node IPs
+├── generate-vsphere-ipi-fix-ips-config.yaml   # vSphere IPI install-config.yaml with fixed node IPs
 ├── generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)
 ├── download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root
 ├── tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic
@@ -1066,7 +1069,7 @@ redfish-hw-inventory/
 ├── library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset
 ├── filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic
 ├── filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic
-├── filter_plugins/vsphere_filters.py       # vSphere IPI hosts[] (static IPs) and failureDomains[]
+├── filter_plugins/vsphere_filters.py       # vSphere IPI hosts[] (fixed IPs), failureDomains[], vcenters[]
 ├── filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc
 ├── verify-boot/
 │   ├── verify.bu                     # generic Butane config embedded into verify.iso
@@ -1089,7 +1092,7 @@ redfish-hw-inventory/
     │       ├── agent-config.example.yaml
     │       ├── install-config.example.yaml
     │       ├── nodes-config.example.yaml
-    │       ├── vsphere-ipi/install-config.example.yaml
+    │       ├── vsphere-ipi-fix-ips/install-config.example.yaml
     │       └── acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)
     └── ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet
         ├── inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)

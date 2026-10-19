@@ -80,46 +80,52 @@ platform:
     failureDomains:
     - name: CHANGE_ME-fd-1
       region: CHANGE_ME-region
-      server: vcenter.example.com
+      server: vcenter-1.example.com
       topology:
-        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1
-        datacenter: CHANGE_ME-Datacenter
-        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-1
+        computeCluster: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-1
+        datacenter: CHANGE_ME-Datacenter-1
+        datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-1
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1/Resources
+        resourcePool: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-1/Resources
       zone: CHANGE_ME-zone-1
     - name: CHANGE_ME-fd-2
       region: CHANGE_ME-region
-      server: vcenter.example.com
+      server: vcenter-1.example.com
       topology:
-        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2
-        datacenter: CHANGE_ME-Datacenter
-        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-2
+        computeCluster: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-2
+        datacenter: CHANGE_ME-Datacenter-1
+        datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-2
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2/Resources
+        resourcePool: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-2/Resources
       zone: CHANGE_ME-zone-2
     - name: CHANGE_ME-fd-3
       region: CHANGE_ME-region
-      server: vcenter.example.com
+      server: vcenter-2.example.com
       topology:
-        computeCluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3
-        datacenter: CHANGE_ME-Datacenter
-        datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-3
+        computeCluster: /CHANGE_ME-Datacenter-2/host/CHANGE_ME-Cluster-3
+        datacenter: CHANGE_ME-Datacenter-2
+        datastore: /CHANGE_ME-Datacenter-2/datastore/CHANGE_ME-datastore-3
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3/Resources
+        resourcePool: /CHANGE_ME-Datacenter-2/host/CHANGE_ME-Cluster-3/Resources
       zone: CHANGE_ME-zone-3
     ingressVIPs:
     - 10.10.10.9
     vcenters:
     - datacenters:
-      - CHANGE_ME-Datacenter
+      - CHANGE_ME-Datacenter-1
       password: CHANGE_ME
       port: 443
-      server: vcenter.example.com
-      user: administrator@vsphere.local
+      server: vcenter-1.example.com
+      user: CHANGE_ME@vsphere.local
+    - datacenters:
+      - CHANGE_ME-Datacenter-2
+      password: CHANGE_ME
+      port: 443
+      server: vcenter-2.example.com
+      user: CHANGE_ME@vsphere.local
 publish: External
 pullSecret: CHANGE_ME - paste your pull secret JSON here as a single-quoted string
 sshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key

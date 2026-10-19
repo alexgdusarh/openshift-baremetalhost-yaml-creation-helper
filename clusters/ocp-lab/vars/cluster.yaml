@@ -151,15 +151,23 @@ managed_clusterset: default
 infraenv_labels:
   location: basement
 
-# Optional. Only for generate-vsphere-ipi-config.yaml (./run-cluster.sh
-# <cluster> vsphere-ipi): installs this same cluster (same names, node IPs,
-# VIPs, gateway, DNS) as vSphere IPI VMs with static IPs.
+# Optional. Only for generate-vsphere-ipi-fix-ips-config.yaml
+# (./run-cluster.sh <cluster> vsphere-ipi-fix-ips): installs this same
+# cluster (same names, node IPs, VIPs, gateway, DNS) as vSphere IPI VMs with
+# fixed IPs.
 vsphere:
-  vcenter: vcenter.example.com
-  port: 443
-  username: administrator@vsphere.local
-  password: "CHANGE_ME"          # vault it: ansible-vault encrypt_string
+  # 1 to n vCenters. Vault each password: ansible-vault encrypt_string
+  vcenters:
+    - server: vcenter-1.example.com
+      port: 443
+      username: CHANGE_ME@vsphere.local
+      password: "CHANGE_ME"
+    - server: vcenter-2.example.com
+      port: 443
+      username: CHANGE_ME@vsphere.local
+      password: "CHANGE_ME"
   bootstrap_ip: 10.10.10.30      # extra address for the temporary bootstrap VM
+  # bootstrap_failure_domain: CHANGE_ME-fd-1   # default: the first failure domain
   control_plane:
     cpus: 8
     cores_per_socket: 4
@@ -168,35 +176,39 @@ vsphere:
     cpus: 16
     cores_per_socket: 8
     memory_mb: 65536
-  # 1 to n failure domains (usually 3 for HA). With more than one, the
-  # masters and workers are spread round-robin across them unless a host
-  # sets vsphere_failure_domain: <name> in inventory/hosts.yaml (the
-  # bootstrap: bootstrap_failure_domain: here). Several domains also need
-  # the openshift-region/openshift-zone tags in vCenter.
+  # 1 to n failure domains (usually 3 for HA), each on one vCenter
+  # (`server`, optional with a single vCenter); one vCenter can hold several
+  # (other compute clusters or datacenters). With more than one, the masters
+  # and workers are spread round-robin across them unless a host sets
+  # vsphere_failure_domain: <name> in inventory/hosts.yaml. Several domains
+  # also need the openshift-region/openshift-zone tags in vCenter.
   failure_domains:
     - name: CHANGE_ME-fd-1
       region: CHANGE_ME-region
       zone: CHANGE_ME-zone-1
-      datacenter: CHANGE_ME-Datacenter
-      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-1
-      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-1
+      server: vcenter-1.example.com
+      datacenter: CHANGE_ME-Datacenter-1
+      compute_cluster: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-1
+      datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-1
       networks:
         - CHANGE_ME-VM-Network
       # resource_pool: <compute_cluster>/Resources (default)
-      # folder: /CHANGE_ME-Datacenter/vm/CHANGE_ME-folder (optional)
+      # folder: /CHANGE_ME-Datacenter-1/vm/CHANGE_ME-folder (optional)
     - name: CHANGE_ME-fd-2
       region: CHANGE_ME-region
       zone: CHANGE_ME-zone-2
-      datacenter: CHANGE_ME-Datacenter
-      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-2
-      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-2
+      server: vcenter-1.example.com
+      datacenter: CHANGE_ME-Datacenter-1
+      compute_cluster: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-2
+      datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-2
       networks:
         - CHANGE_ME-VM-Network
     - name: CHANGE_ME-fd-3
       region: CHANGE_ME-region
       zone: CHANGE_ME-zone-3
-      datacenter: CHANGE_ME-Datacenter
-      compute_cluster: /CHANGE_ME-Datacenter/host/CHANGE_ME-Cluster-3
-      datastore: /CHANGE_ME-Datacenter/datastore/CHANGE_ME-datastore-3
+      server: vcenter-2.example.com
+      datacenter: CHANGE_ME-Datacenter-2
+      compute_cluster: /CHANGE_ME-Datacenter-2/host/CHANGE_ME-Cluster-3
+      datastore: /CHANGE_ME-Datacenter-2/datastore/CHANGE_ME-datastore-3
       networks:
         - CHANGE_ME-VM-Network

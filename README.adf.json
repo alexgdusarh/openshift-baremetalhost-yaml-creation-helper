@@ -1155,7 +1155,7 @@
       "content": [
         {
           "type": "text",
-          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> vsphere-ipi      # vSphere IPI install-config.yaml with static IPs\n./run-cluster.sh <cluster-name> all              # both, in order\n./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version\n./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image\n./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan\n./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
+          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> vsphere-ipi-fix-ips   # vSphere IPI install-config.yaml with fixed node IPs\n./run-cluster.sh <cluster-name> all              # both, in order\n./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version\n./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image\n./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan\n./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
         }
       ]
     },
@@ -7566,7 +7566,7 @@
       "content": [
         {
           "type": "text",
-          "text": "vSphere IPI with static IPs"
+          "text": "vSphere IPI with fixed IPs"
         }
       ]
     },
@@ -7575,7 +7575,7 @@
       "content": [
         {
           "type": "text",
-          "text": "generate-vsphere-ipi-config.yaml",
+          "text": "generate-vsphere-ipi-fix-ips-config.yaml",
           "marks": [
             {
               "type": "code"
@@ -7610,7 +7610,7 @@
         },
         {
           "type": "text",
-          "text": " gives the bootstrap VM, every master and every worker its static address. It reuses the cluster data the other outputs use \u2014 the "
+          "text": " gives the bootstrap VM, every master and every worker its static address (the network definitions a plain vSphere IPI install, with DHCP, doesn't have). It reuses the cluster data the other outputs use \u2014 the "
         },
         {
           "type": "text",
@@ -7814,7 +7814,7 @@
       "content": [
         {
           "type": "text",
-          "text": "./run-cluster.sh <cluster-name> vsphere-ipi"
+          "text": "./run-cluster.sh <cluster-name> vsphere-ipi-fix-ips"
         }
       ]
     },
@@ -7827,7 +7827,7 @@
         },
         {
           "type": "text",
-          "text": "<cluster_dir>/output/vsphere-ipi/install-config.yaml",
+          "text": "<cluster_dir>/output/vsphere-ipi-fix-ips/install-config.yaml",
           "marks": [
             {
               "type": "code"
@@ -7836,7 +7836,7 @@
         },
         {
           "type": "text",
-          "text": " (mode 600: it holds the vCenter password and the pull secret), in its own directory because "
+          "text": " (mode 600: it holds the vCenter passwords and the pull secret), in its own directory because "
         },
         {
           "type": "text",
@@ -7862,11 +7862,11 @@
         },
         {
           "type": "text",
-          "text": " of the directory it runs in. Worked example: "
+          "text": " of the directory it runs in. Worked example (two vCenters, three failure domains): "
         },
         {
           "type": "text",
-          "text": "clusters/ocp-lab/output/vsphere-ipi/install-config.example.yaml",
+          "text": "clusters/ocp-lab/output/vsphere-ipi-fix-ips/install-config.example.yaml",
           "marks": [
             {
               "type": "code"
@@ -7981,7 +7981,31 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "vcenter",
+                      "text": "vcenters",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "1 to n vCenters, each "
+                    },
+                    {
+                      "type": "text",
+                      "text": "server",
                       "marks": [
                         {
                           "type": "code"
@@ -7991,19 +8015,6 @@
                     {
                       "type": "text",
                       "text": ", "
-                    },
-                    {
-                      "type": "text",
-                      "text": "port",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": " (443), "
                     },
                     {
                       "type": "text",
@@ -8026,21 +8037,23 @@
                           "type": "code"
                         }
                       ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "attrs": {},
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
+                    },
                     {
                       "type": "text",
-                      "text": "vCenter connection; vault the password ("
+                      "text": ", optional "
+                    },
+                    {
+                      "type": "text",
+                      "text": "port",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (443); vault the passwords ("
                     },
                     {
                       "type": "text",
@@ -8136,6 +8149,19 @@
                     },
                     {
                       "type": "text",
+                      "text": "server",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (its vCenter; optional with a single one), "
+                    },
+                    {
+                      "type": "text",
                       "text": "datacenter",
                       "marks": [
                         {
@@ -8220,6 +8246,10 @@
                           "type": "code"
                         }
                       ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ". One vCenter can hold several (other compute clusters or datacenters)"
                     }
                   ]
                 }
@@ -8516,7 +8546,20 @@
         },
         {
           "type": "text",
-          "text": ", that no two of them share an address, and that every failure domain is complete and every name used exists."
+          "text": ", that no two of them share an address, that every failure domain is complete and on a listed vCenter, that every vCenter hosts at least one failure domain (its "
+        },
+        {
+          "type": "text",
+          "text": "datacenters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " come from them), and that every failure domain name used exists."
         }
       ]
     },
@@ -12050,7 +12093,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "output/vsphere-ipi/install-config.yaml",
+                      "text": "output/vsphere-ipi-fix-ips/install-config.yaml",
                       "marks": [
                         {
                           "type": "code"
@@ -12503,7 +12546,7 @@
       "content": [
         {
           "type": "text",
-          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-vsphere-ipi-config.yaml   # vSphere IPI install-config.yaml with static node IPs\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root\n\u251c\u2500\u2500 tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic\n\u251c\u2500\u2500 create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/\n\u251c\u2500\u2500 boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 filter_plugins/vsphere_filters.py       # vSphere IPI hosts[] (static IPs) and failureDomains[]\n\u251c\u2500\u2500 filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)\n\u251c\u2500\u2500 tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u251c\u2500\u2500 nodes-config.example.yaml\n    \u2502       \u251c\u2500\u2500 vsphere-ipi/install-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u251c\u2500\u2500 nodes-config.example.yaml\n            \u2514\u2500\u2500 acm/"
+          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-vsphere-ipi-fix-ips-config.yaml   # vSphere IPI install-config.yaml with fixed node IPs\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root\n\u251c\u2500\u2500 tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic\n\u251c\u2500\u2500 create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/\n\u251c\u2500\u2500 boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 filter_plugins/vsphere_filters.py       # vSphere IPI hosts[] (fixed IPs), failureDomains[], vcenters[]\n\u251c\u2500\u2500 filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)\n\u251c\u2500\u2500 tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u251c\u2500\u2500 nodes-config.example.yaml\n    \u2502       \u251c\u2500\u2500 vsphere-ipi-fix-ips/install-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u251c\u2500\u2500 nodes-config.example.yaml\n            \u2514\u2500\u2500 acm/"
         }
       ]
     },
