@@ -1,0 +1,187 @@
+---
+# generate-vsphere-ipi-config.yaml
+#
+# Renders an install-config.yaml for a vSphere IPI install with fixed
+# (static) node IPs, from the same cluster data as generate-agent-config.yaml:
+# masters/workers groups and each host's `ip` in inventory/hosts.yaml, and
+# cluster_name, base_domain, gateway, dns, network_profile.prefix_length,
+# machine_network_cidr, api_vips, ingress_vips, pull_secret and ssh_key in
+# vars/cluster.yaml. The vSphere-only settings (vCenter, placement, bootstrap
+# IP, VM sizes) come from the `vsphere:` block of vars/cluster.yaml - see
+# README.md's "vSphere IPI with static IPs" section. No hardware discovery
+# is needed: these are VMs.
+#
+#   ./run-cluster.sh <cluster-name> vsphere-ipi
+#
+# Output: <cluster_dir>/output/vsphere-ipi/install-config.yaml, in its own
+# directory because openshift-install consumes (and deletes) the
+# install-config.yaml of the directory it runs in.
+#
+# platform.vsphere.hosts lists the bootstrap, then the masters and the
+# workers in inventory order; the installer gives the Nth control-plane
+# entry to <infraID>-master-N. It has no hostname field: node names are the
+# VM names the installer generates.
+
+- name: Validate inputs before loading any cluster-specific vars files
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: cluster_dir is required
+      assert:
+        that:
+          - cluster_dir is defined
+          - cluster_dir | length > 0
+        fail_msg: >-
+          cluster_dir is required, e.g. -e cluster_dir=clusters/ocp-lab -
+          or use ./run-cluster.sh ocp-lab vsphere-ipi instead.
+
+- name: Render a vSphere IPI install-config.yaml with static IPs
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - "{{ cluster_dir }}/vars/cluster.yaml"
+  vars:
+    output_dir: "{{ cluster_dir }}/output/vsphere-ipi"
+    masters: "{{ groups.get('masters', []) }}"
+    workers: "{{ groups.get('workers', []) }}"
+    # One failure domain from the vsphere: block unless it lists its own.
+    vsphere_failure_domains: >-
+      {{ vsphere.failure_domains | default([{
+           'name': 'generated-failure-domain', 'region': 'generated-region', 'zone': 'generated-zone',
+           'datacenter': vsphere.datacenter, 'compute_cluster': vsphere.compute_cluster,
+           'datastore': vsphere.datastore, 'networks': vsphere.networks,
+           'resource_pool': vsphere.resource_pool | default(none)}]) }}
+
+  tasks:
+    - name: vars/cluster.yaml has everything the vSphere install-config needs
+      assert:
+        that:
+          - base_domain is defined and base_domain | length > 0
+          - machine_network_cidr is defined and machine_network_cidr | length > 0
+          - api_vips is defined and api_vips | length in [1, 2]
+          - ingress_vips is defined and ingress_vips | length in [1, 2]
+          - gateway is defined and dns.server | default([]) | length > 0
+          - network_profile.prefix_length is defined
+          - pull_secret is defined and ssh_key is defined
+          - vsphere is defined
+          - vsphere.vcenter is defined and vsphere.username is defined and vsphere.password is defined
+          - vsphere.datacenter is defined
+          - vsphere.bootstrap_ip is defined
+          - vsphere.failure_domains is defined or
+            (vsphere.compute_cluster is defined and vsphere.datastore is defined and vsphere.networks is defined)
+          - masters | length > 0
+        fail_msg: >-
+          {{ cluster_dir }}/vars/cluster.yaml needs base_domain, machine_network_cidr,
+          api_vips, ingress_vips, gateway, dns.server, network_profile.prefix_length,
+          pull_secret, ssh_key and a vsphere: block (vcenter, username, password,
+          datacenter, bootstrap_ip, and compute_cluster/datastore/networks or
+          failure_domains), and the inventory needs a masters group - see README.md's
+          "vSphere IPI with static IPs".
+
+    - name: Every node has an IP inside machine_network_cidr
+      assert:
+        that:
+          - hostvars[item].ip is defined
+          - hostvars[item].ip | ip_in_network(machine_network_cidr)
+        fail_msg: >-
+          {{ item }} needs an `ip` inside machine_network_cidr ({{ machine_network_cidr }})
+          in {{ cluster_dir }}/inventory/hosts.yaml.
+      loop: "{{ masters + workers }}"
+
+    - name: The bootstrap IP and the VIPs are inside machine_network_cidr
+      assert:
+        that:
+          - item | ip_in_network(machine_network_cidr)
+        fail_msg: "{{ item }} is not inside machine_network_cidr ({{ machine_network_cidr }})."
+      loop: "{{ [vsphere.bootstrap_ip] + api_vips + ingress_vips }}"
+
+    - name: No two nodes, the bootstrap or a VIP share an address
+      vars:
+        all_ips: "{{ [vsphere.bootstrap_ip] + api_vips + ingress_vips + (masters + workers) | map('extract', hostvars, 'ip') | list }}"
+      assert:
+        that:
+          - all_ips | length == all_ips | unique | length
+        fail_msg: "Duplicate address among the bootstrap IP, the VIPs and the nodes' IPs: {{ all_ips }}"
+
+    # One native Jinja expression, so replicas/hostPrefix/cpus/... stay integers
+    - name: Assemble the install-config.yaml document
+      vars:
+        bootstrap_host:
+          ip: "{{ vsphere.bootstrap_ip }}"
+          vsphere_failure_domain: "{{ vsphere.bootstrap_failure_domain | default('') }}"
+      set_fact:
+        vsphere_install_config: >-
+          {{
+            {
+              'additionalTrustBundlePolicy': 'Proxyonly',
+              'apiVersion': 'v1',
+              'baseDomain': base_domain,
+            }
+            | combine({'featureSet': vsphere.feature_set} if vsphere.feature_set | default('') | length > 0 else {})
+            | combine({
+              'compute': [{
+                'architecture': vsphere.architecture | default('amd64'),
+                'hyperthreading': 'Enabled',
+                'name': 'worker',
+                'platform': {'vsphere': {
+                  'cpus': vsphere.compute.cpus | default(4) | int,
+                  'coresPerSocket': vsphere.compute.cores_per_socket | default(2) | int,
+                  'memoryMB': vsphere.compute.memory_mb | default(16384) | int}},
+                'replicas': workers | length,
+              }],
+              'controlPlane': {
+                'architecture': vsphere.architecture | default('amd64'),
+                'hyperthreading': 'Enabled',
+                'name': 'master',
+                'platform': {'vsphere': {
+                  'cpus': vsphere.control_plane.cpus | default(4) | int,
+                  'coresPerSocket': vsphere.control_plane.cores_per_socket | default(2) | int,
+                  'memoryMB': vsphere.control_plane.memory_mb | default(16384) | int}},
+                'replicas': masters | length,
+              },
+              'metadata': {'name': cluster_name},
+              'networking': {
+                'clusterNetwork': [{'cidr': cluster_network_cidr | default('10.128.0.0/14'),
+                                    'hostPrefix': cluster_network_host_prefix | default(23) | int}],
+                'machineNetwork': [{'cidr': machine_network_cidr}],
+                'networkType': 'OVNKubernetes',
+                'serviceNetwork': [service_network_cidr | default('172.30.0.0/16')],
+              },
+              'platform': {'vsphere': {
+                'hosts': bootstrap_host | vsphere_static_hosts(masters, workers, hostvars,
+                                                               gateway, dns.server, network_profile.prefix_length),
+                'apiVIPs': api_vips,
+                'failureDomains': vsphere_failure_domains | map('vsphere_failure_domain', vsphere.vcenter) | list,
+                'ingressVIPs': ingress_vips,
+                'vcenters': [{
+                  'datacenters': vsphere_failure_domains | map(attribute='datacenter') | unique | list,
+                  'password': vsphere.password,
+                  'port': vsphere.port | default(443) | int,
+                  'server': vsphere.vcenter,
+                  'user': vsphere.username,
+                }],
+              }},
+              'publish': vsphere.publish | default('External'),
+              'pullSecret': pull_secret,
+              'sshKey': ssh_key,
+            })
+          }}
+
+    - name: Ensure the output directory exists
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: "0755"
+
+    # mode 600: it holds the vCenter password and the pull secret
+    - name: Write install-config.yaml
+      copy:
+        dest: "{{ output_dir }}/install-config.yaml"
+        mode: "0600"
+        content: "{{ vsphere_install_config | to_nice_yaml(indent=2, width=200, sort_keys=False) }}"
+
+    - name: Done
+      debug:
+        msg: "Wrote {{ output_dir }}/install-config.yaml"

@@ -1,0 +1,98 @@
+additionalTrustBundlePolicy: Proxyonly
+apiVersion: v1
+baseDomain: example.com
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform:
+    vsphere:
+      cpus: 16
+      coresPerSocket: 8
+      memoryMB: 65536
+  replicas: 1
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+    vsphere:
+      cpus: 8
+      coresPerSocket: 4
+      memoryMB: 16384
+  replicas: 3
+metadata:
+  name: ocp-lab
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: 10.10.10.0/24
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  vsphere:
+    hosts:
+    - role: bootstrap
+      networkDevice:
+        ipAddrs:
+        - 10.10.10.30/24
+        gateway: 10.10.10.1
+        nameservers:
+        - 10.10.10.1
+    - role: control-plane
+      networkDevice:
+        ipAddrs:
+        - 10.10.10.11/24
+        gateway: 10.10.10.1
+        nameservers:
+        - 10.10.10.1
+    - role: control-plane
+      networkDevice:
+        ipAddrs:
+        - 10.10.10.12/24
+        gateway: 10.10.10.1
+        nameservers:
+        - 10.10.10.1
+    - role: control-plane
+      networkDevice:
+        ipAddrs:
+        - 10.10.10.13/24
+        gateway: 10.10.10.1
+        nameservers:
+        - 10.10.10.1
+    - role: compute
+      networkDevice:
+        ipAddrs:
+        - 10.10.10.14/24
+        gateway: 10.10.10.1
+        nameservers:
+        - 10.10.10.1
+    apiVIPs:
+    - 10.10.10.10
+    failureDomains:
+    - name: generated-failure-domain
+      region: generated-region
+      server: vcenter.example.com
+      topology:
+        computeCluster: /Datacenter/host/Cluster
+        datacenter: Datacenter
+        datastore: /Datacenter/datastore/datastore1
+        networks:
+        - VM Network
+        resourcePool: /Datacenter/host/Cluster/Resources
+      zone: generated-zone
+    ingressVIPs:
+    - 10.10.10.9
+    vcenters:
+    - datacenters:
+      - Datacenter
+      password: CHANGE_ME
+      port: 443
+      server: vcenter.example.com
+      user: administrator@vsphere.local
+publish: External
+pullSecret: CHANGE_ME - paste your pull secret JSON here as a single-quoted string
+sshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... CHANGE_ME your-public-key

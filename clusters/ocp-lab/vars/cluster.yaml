@@ -150,3 +150,39 @@ managed_clusterset: default
 # example key - use whatever label(s) your ACM setup keys agents on.
 infraenv_labels:
   location: basement
+
+# Optional. Only for generate-vsphere-ipi-config.yaml (./run-cluster.sh
+# <cluster> vsphere-ipi): installs this same cluster (same names, node IPs,
+# VIPs, gateway, DNS) as vSphere IPI VMs with static IPs.
+vsphere:
+  vcenter: vcenter.example.com
+  port: 443
+  username: administrator@vsphere.local
+  password: "CHANGE_ME"          # vault it: ansible-vault encrypt_string
+  datacenter: Datacenter
+  compute_cluster: /Datacenter/host/Cluster
+  datastore: /Datacenter/datastore/datastore1
+  networks:
+    - VM Network
+  # resource_pool: /Datacenter/host/Cluster/Resources   # default: <compute_cluster>/Resources
+  bootstrap_ip: 10.10.10.30      # extra address for the temporary bootstrap VM
+  # feature_set: TechPreviewNoUpgrade   # only if your release still gates static IPs
+  control_plane:
+    cpus: 8
+    cores_per_socket: 4
+    memory_mb: 16384
+  compute:
+    cpus: 16
+    cores_per_socket: 8
+    memory_mb: 65536
+  # Several vSphere zones: list them instead of compute_cluster/datastore/
+  # networks above, and set vsphere_failure_domain: <name> on each host in
+  # inventory/hosts.yaml (bootstrap_failure_domain: for the bootstrap).
+  # failure_domains:
+  #   - name: fd-1
+  #     region: region-a
+  #     zone: zone-1
+  #     datacenter: Datacenter
+  #     compute_cluster: /Datacenter/host/Cluster1
+  #     datastore: /Datacenter/datastore/ds1
+  #     networks: [VM Network]

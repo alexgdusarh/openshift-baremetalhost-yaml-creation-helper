@@ -1155,7 +1155,7 @@
       "content": [
         {
           "type": "text",
-          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> all              # both, in order\n./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version\n./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image\n./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan\n./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
+          "text": "./run-cluster.sh <cluster-name> discover        # stage 1: hw_inventory.yaml\n./run-cluster.sh <cluster-name> agent-config     # stage 2: agent-config.yaml\n./run-cluster.sh <cluster-name> vsphere-ipi      # vSphere IPI install-config.yaml with static IPs\n./run-cluster.sh <cluster-name> all              # both, in order\n./run-cluster.sh <cluster-name> clients          # oc, openshift-install, oc-mirror, opm for its ocp_version\n./run-cluster.sh <cluster-name> agent-iso        # openshift-install agent create image\n./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr>   # dry run: mount + boot plan\n./run-cluster.sh <cluster-name> convert          # clusters/convert/<name>.yaml -> clusters/<name>/\n\n# anything after -- is passed straight through to ansible-playbook:\n./run-cluster.sh <cluster-name> discover -- --ask-vault-pass\n./run-cluster.sh <cluster-name> discover -- -e bmc_password=..."
         }
       ]
     },
@@ -7566,6 +7566,1169 @@
       "content": [
         {
           "type": "text",
+          "text": "vSphere IPI with static IPs"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "generate-vsphere-ipi-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " renders the same cluster as a vSphere IPI install with fixed node IPs: an "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " whose "
+        },
+        {
+          "type": "text",
+          "text": "platform.vsphere.hosts",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " gives the bootstrap VM, every master and every worker its static address. It reuses the cluster data the other outputs use \u2014 the "
+        },
+        {
+          "type": "text",
+          "text": "masters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "/"
+        },
+        {
+          "type": "text",
+          "text": "workers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " groups and each host's "
+        },
+        {
+          "type": "text",
+          "text": "ip",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " from "
+        },
+        {
+          "type": "text",
+          "text": "inventory/hosts.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", and "
+        },
+        {
+          "type": "text",
+          "text": "cluster_name",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "base_domain",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "gateway",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "dns.server",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "network_profile.prefix_length",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "machine_network_cidr",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "api_vips",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "ingress_vips",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "pull_secret",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "ssh_key",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " from "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". No hardware discovery is needed."
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "./run-cluster.sh <cluster-name> vsphere-ipi"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Output: "
+        },
+        {
+          "type": "text",
+          "text": "<cluster_dir>/output/vsphere-ipi/install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (mode 600: it holds the vCenter password and the pull secret), in its own directory because "
+        },
+        {
+          "type": "text",
+          "text": "openshift-install",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " consumes the "
+        },
+        {
+          "type": "text",
+          "text": "install-config.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " of the directory it runs in. Worked example: "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/output/vsphere-ipi/install-config.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The vSphere-only settings go in a "
+        },
+        {
+          "type": "text",
+          "text": "vsphere:",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " block of "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (see "
+        },
+        {
+          "type": "text",
+          "text": "clusters/ocp-lab/vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "):"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "isNumberColumnEnabled": false,
+        "layout": "default"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Key"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Purpose"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "vcenter",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "port",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (443), "
+                    },
+                    {
+                      "type": "text",
+                      "text": "username",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "password",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "vCenter connection; vault the password ("
+                    },
+                    {
+                      "type": "text",
+                      "text": "ansible-vault encrypt_string",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ")"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "datacenter",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "compute_cluster",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "datastore",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "networks",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "resource_pool",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "VM placement; "
+                    },
+                    {
+                      "type": "text",
+                      "text": "resource_pool",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " defaults to "
+                    },
+                    {
+                      "type": "text",
+                      "text": "<compute_cluster>/Resources",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "bootstrap_ip",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "the extra address for the temporary bootstrap VM"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "control_plane",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "compute",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "VM size: "
+                    },
+                    {
+                      "type": "text",
+                      "text": "cpus",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "cores_per_socket",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "memory_mb",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "feature_set",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "optional, e.g. "
+                    },
+                    {
+                      "type": "text",
+                      "text": "TechPreviewNoUpgrade",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " on releases that still gate static IPs (it blocks upgrades)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "publish",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "architecture",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "optional, default "
+                    },
+                    {
+                      "type": "text",
+                      "text": "External",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " and "
+                    },
+                    {
+                      "type": "text",
+                      "text": "amd64",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "failure_domains",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "optional list for several vSphere zones ("
+                    },
+                    {
+                      "type": "text",
+                      "text": "name",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "region",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "zone",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "datacenter",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "compute_cluster",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "datastore",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "networks",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", optional "
+                    },
+                    {
+                      "type": "text",
+                      "text": "resource_pool",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "folder",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "server",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "); set "
+                    },
+                    {
+                      "type": "text",
+                      "text": "vsphere_failure_domain:",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " per host in the inventory and "
+                    },
+                    {
+                      "type": "text",
+                      "text": "bootstrap_failure_domain:",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " here"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Replicas are the sizes of the "
+        },
+        {
+          "type": "text",
+          "text": "masters",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "workers",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " groups. The run checks that every node, the bootstrap IP and the VIPs are inside "
+        },
+        {
+          "type": "text",
+          "text": "machine_network_cidr",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and that no two of them share an address."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "platform.vsphere.hosts",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " has no hostname field: the installer names the VMs, and so the nodes, "
+        },
+        {
+          "type": "text",
+          "text": "<infraID>-master-N",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " / "
+        },
+        {
+          "type": "text",
+          "text": "<infraID>-worker-...",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". The inventory's host names are not used as node names here; the hosts are listed bootstrap first, then masters and workers in inventory order."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
           "text": "Building and booting the Agent-based Installer ISO"
         }
       ]
@@ -10874,6 +12037,64 @@
                   "content": [
                     {
                       "type": "text",
+                      "text": "output/vsphere-ipi/install-config.yaml",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "pullSecret",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "sshKey",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {},
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
                       "text": "output/acm/cluster.yaml",
                       "marks": [
                         {
@@ -11256,7 +12477,7 @@
       "content": [
         {
           "type": "text",
-          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root\n\u251c\u2500\u2500 tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic\n\u251c\u2500\u2500 create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/\n\u251c\u2500\u2500 boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)\n\u251c\u2500\u2500 tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u251c\u2500\u2500 nodes-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u251c\u2500\u2500 nodes-config.example.yaml\n            \u2514\u2500\u2500 acm/"
+          "text": "redfish-hw-inventory/\n\u251c\u2500\u2500 ansible.cfg                      # no default inventory - see run-cluster.sh\n\u251c\u2500\u2500 run-cluster.sh                     # wrapper: derives -i and cluster_dir from one cluster name\n\u251c\u2500\u2500 inject-secrets.sh                  # fills the real pull secret + SSH key into generated output - see \"Secrets\"\n\u251c\u2500\u2500 githooks/pre-commit                # blocks commits of real cluster data / secrets - see \"Secrets\"\n\u251c\u2500\u2500 playbook.yaml                      # stage 1: hardware discovery (cluster-agnostic)\n\u251c\u2500\u2500 generate-agent-config.yaml         # stage 2: agent-config.yaml + install-config.yaml (cluster-agnostic)\n\u251c\u2500\u2500 generate-vsphere-ipi-config.yaml   # vSphere IPI install-config.yaml with static node IPs\n\u251c\u2500\u2500 generate-acm-manifests.yaml        # stage 3: ACM/Assisted-Installer CRs (cluster-agnostic)\n\u251c\u2500\u2500 download-clients.yaml             # oc/openshift-install/oc-mirror/opm per release, no root\n\u251c\u2500\u2500 tasks/download_clients.yaml        # download-clients.yaml's (and agent-iso's) download logic\n\u251c\u2500\u2500 create-agent-iso.yaml              # stage 4: openshift-install agent create image -> output/image/\n\u251c\u2500\u2500 boot-agent-iso.yaml                # stage 5: Redfish virtual media + one-time CD boot (dry run unless confirm=true)\n\u251c\u2500\u2500 convert-clusters.yaml               # one-off: clusters/convert/*.yaml (legacy format) -> clusters/<name>/\n\u251c\u2500\u2500 tasks/convert_one_cluster.yaml      # convert-clusters.yaml's per-file conversion logic\n\u251c\u2500\u2500 manage-verify-iso.yaml             # builds verify.iso once per RHCOS version+arch - see \"Verifying predictions...\"\n\u251c\u2500\u2500 mount-verify-media.yaml            # derives per-host static-IP ISO + mounts via Redfish virtual media + boots it\n\u251c\u2500\u2500 deploy-verify-webhook.yaml         # installs the webhook as a systemd service + opens its firewall port\n\u251c\u2500\u2500 library/redfish_hw_facts.py             # stage 1: all the Redfish discovery work\n\u251c\u2500\u2500 library/redfish_boot_media.py           # stage 5: vendor-neutral eject/insert/boot-once/reset\n\u251c\u2500\u2500 filter_plugins/agent_config_filters.py  # stage 2: boot-disk + nmstate + CIDR-check logic\n\u251c\u2500\u2500 filter_plugins/acm_manifest_filters.py  # stage 3: bootMACAddress + BMC Redfish URI logic\n\u251c\u2500\u2500 filter_plugins/vsphere_filters.py       # vSphere IPI hosts[] (static IPs) and failureDomains[]\n\u251c\u2500\u2500 filter_plugins/openshift_clients_filters.py  # picks client tarballs per release/arch/glibc\n\u251c\u2500\u2500 verify-boot/\n\u2502   \u251c\u2500\u2500 verify.bu                     # generic Butane config embedded into verify.iso\n\u2502   \u2514\u2500\u2500 collect-facts.sh              # runs on the live boot, POSTs facts to the webhook, powers off\n\u251c\u2500\u2500 webhook/\n\u2502   \u251c\u2500\u2500 verify_webhook.py             # receives collect-facts.sh reports only - not an ISO server\n\u2502   \u2514\u2500\u2500 verify-webhook.service.j2     # systemd unit template, rendered by deploy-verify-webhook.yaml\n\u251c\u2500\u2500 tools/iso-http-server.py                # stdlib HTTP server with Range support (serves ISOs to BMCs, no root)\n\u251c\u2500\u2500 tools/connect-proxy.py                  # stdlib HTTP CONNECT proxy, for reaching BMCs through a jump host\n\u251c\u2500\u2500 tools/readme_to_adf.py                  # converts this README to ADF for Confluence - see footnote [^1]\n\u251c\u2500\u2500 README.adf.json                         # this README, pre-converted to ADF\n\u2514\u2500\u2500 clusters/\n    \u251c\u2500\u2500 convert/                     # legacy-format cluster files awaiting convert-clusters.yaml (local only, git-ignored)\n    \u251c\u2500\u2500 ocp-lab/                     # example: real hardware, bonded network\n    \u2502   \u251c\u2500\u2500 inventory/hosts.yaml      # this cluster's BMCs, credentials (bmc_hosts.vars, overridable per host), masters/workers groups\n    \u2502   \u251c\u2500\u2500 vars/\n    \u2502   \u2502   \u251c\u2500\u2500 cluster.yaml          # cluster/network/install-config/ACM settings - see below\n    \u2502   \u2514\u2500\u2500 output/\n    \u2502       \u251c\u2500\u2500 hw_inventory.example.yaml\n    \u2502       \u251c\u2500\u2500 agent-config.example.yaml\n    \u2502       \u251c\u2500\u2500 install-config.example.yaml\n    \u2502       \u251c\u2500\u2500 nodes-config.example.yaml\n    \u2502       \u251c\u2500\u2500 vsphere-ipi/install-config.example.yaml\n    \u2502       \u2514\u2500\u2500 acm/                  # generate-acm-manifests.yaml output (cluster.yaml + hosts/<fqdn>.yaml)\n    \u2514\u2500\u2500 ocp-lab-kvm/                 # example: sushy-tools/KVM lab, standalone ethernet\n        \u251c\u2500\u2500 inventory/hosts.yaml       # network_members use the manual 'name:' override (see sushy-tools section)\n        \u251c\u2500\u2500 vars/cluster.yaml\n        \u2514\u2500\u2500 output/\n            \u251c\u2500\u2500 hw_inventory.example.yaml\n            \u251c\u2500\u2500 agent-config.example.yaml\n            \u251c\u2500\u2500 install-config.example.yaml\n            \u251c\u2500\u2500 nodes-config.example.yaml\n            \u2514\u2500\u2500 acm/"
         }
       ]
     },

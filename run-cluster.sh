@@ -6,6 +6,7 @@
 # Usage:
 #   ./run-cluster.sh <cluster-name> discover [-- extra ansible-playbook args]
 #   ./run-cluster.sh <cluster-name> agent-config [-- extra ansible-playbook args]
+#   ./run-cluster.sh <cluster-name> vsphere-ipi [-- extra ansible-playbook args]
 #   ./run-cluster.sh <cluster-name> acm-manifests [-- extra ansible-playbook args]
 #   ./run-cluster.sh <cluster-name> mount-verify-media -- -e target_host=<host> -e rhcos_version=<version> -e webhook_host=<host-your-BMCs-can-reach>
 #   ./run-cluster.sh <cluster-name> all [-- extra ansible-playbook args]
@@ -13,6 +14,10 @@
 #   ./run-cluster.sh <cluster-name> agent-iso [-- extra ansible-playbook args]
 #   ./run-cluster.sh <cluster-name> agent-boot -- -e iso_http_host=<addr> [-e confirm=true]
 #   ./run-cluster.sh <cluster-name> convert [-- extra ansible-playbook args]
+#
+# vsphere-ipi renders output/vsphere-ipi/install-config.yaml for a vSphere
+# IPI install with static node IPs from the same cluster data - see
+# generate-vsphere-ipi-config.yaml. Not part of `all`.
 #
 # clients downloads oc/kubectl, openshift-install, oc-mirror and opm for the
 # cluster's ocp_version - see download-clients.yaml (for a release without
@@ -53,7 +58,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<EOF
-Usage: $0 <cluster-name> <discover|agent-config|acm-manifests|clients|agent-iso|agent-boot|mount-verify-media|all|convert> [-- extra ansible-playbook args]
+Usage: $0 <cluster-name> <discover|agent-config|vsphere-ipi|acm-manifests|clients|agent-iso|agent-boot|mount-verify-media|all|convert> [-- extra ansible-playbook args]
 
 Examples:
   $0 ocp-lab discover
@@ -61,6 +66,7 @@ Examples:
   $0 ocp-lab all
   $0 ocp-lab discover -- --ask-vault-pass
   $0 ocp5 mount-verify-media -- -e target_host=master-00 -e rhcos_version=4.20 -e webhook_host=192.168.0.1
+  $0 ocp-lab vsphere-ipi
   $0 ocp-lab clients
   $0 ocp-lab agent-iso
   $0 ocp-lab agent-boot -- -e iso_http_host=10.0.0.5               # dry run
@@ -113,6 +119,10 @@ run_agent_config() {
   ansible-playbook generate-agent-config.yaml -i "$INVENTORY" -e "cluster_dir=${CLUSTER_DIR}" "$@"
 }
 
+run_vsphere_ipi() {
+  ansible-playbook generate-vsphere-ipi-config.yaml -i "$INVENTORY" -e "cluster_dir=${CLUSTER_DIR}" "$@"
+}
+
 run_acm_manifests() {
   ansible-playbook generate-acm-manifests.yaml -i "$INVENTORY" -e "cluster_dir=${CLUSTER_DIR}" "$@"
 }
@@ -140,6 +150,9 @@ case "$ACTION" in
   agent-config)
     run_agent_config "$@"
     ;;
+  vsphere-ipi)
+    run_vsphere_ipi "$@"
+    ;;
   acm-manifests)
     run_acm_manifests "$@"
     ;;
@@ -165,7 +178,7 @@ case "$ACTION" in
     run_acm_manifests "$@"
     ;;
   *)
-    echo "error: unknown action '${ACTION}' (expected discover, agent-config, acm-manifests, clients, agent-iso, agent-boot, mount-verify-media, all, or convert)" >&2
+    echo "error: unknown action '${ACTION}' (expected discover, agent-config, vsphere-ipi, acm-manifests, clients, agent-iso, agent-boot, mount-verify-media, all, or convert)" >&2
     usage
     ;;
 esac
