@@ -8223,20 +8223,7 @@
                     },
                     {
                       "type": "text",
-                      "text": " (default "
-                    },
-                    {
-                      "type": "text",
-                      "text": "<compute_cluster>/Resources",
-                      "marks": [
-                        {
-                          "type": "code"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "text": ") and "
+                      "text": " and "
                     },
                     {
                       "type": "text",
@@ -8249,7 +8236,7 @@
                     },
                     {
                       "type": "text",
-                      "text": ". One vCenter can hold several (other compute clusters or datacenters)"
+                      "text": " (installer defaults when left out). One vCenter can hold several (other compute clusters or datacenters)"
                     }
                   ]
                 }
@@ -8382,7 +8369,20 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "VM size: "
+                      "text": "machine pools, every key optional (left out: the installer's default): "
+                    },
+                    {
+                      "type": "text",
+                      "text": "zones",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " (limit the pool to these failure domains; default all), "
                     },
                     {
                       "type": "text",
@@ -8413,6 +8413,19 @@
                     {
                       "type": "text",
                       "text": "memory_mb",
+                      "marks": [
+                        {
+                          "type": "code"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ", "
+                    },
+                    {
+                      "type": "text",
+                      "text": "os_disk_gb",
                       "marks": [
                         {
                           "type": "code"
@@ -8499,6 +8512,80 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A top-level "
+        },
+        {
+          "type": "text",
+          "text": "image_digest_sources",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " list in "
+        },
+        {
+          "type": "text",
+          "text": "vars/cluster.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " ("
+        },
+        {
+          "type": "text",
+          "text": "source",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "mirrors",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ") is written as "
+        },
+        {
+          "type": "text",
+          "text": "imageDigestSources",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", for a mirror registry."
         }
       ]
     },
@@ -8607,7 +8694,33 @@
         },
         {
           "type": "text",
-          "text": " if set, otherwise round-robin within its role (first master to the first domain, second master to the second, ...), which is how the installer itself spreads the control-plane machines and the worker replicas. Several failure domains also need vCenter-side setup that this automation doesn't do: the "
+          "text": " if set (it must be one of its pool's "
+        },
+        {
+          "type": "text",
+          "text": "zones",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "), otherwise round-robin over its pool's "
+        },
+        {
+          "type": "text",
+          "text": "zones",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " (first master to the first zone, second master to the second, ...), which is how the installer itself spreads the control-plane machines and the worker replicas. The bootstrap defaults to the first control-plane zone. Several failure domains also need vCenter-side setup that this automation doesn't do: the "
         },
         {
           "type": "text",

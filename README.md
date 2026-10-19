@@ -626,11 +626,14 @@ The vSphere-only settings go in a `vsphere:` block of `vars/cluster.yaml`
 | Key | Purpose |
 |---|---|
 | `vcenters` | 1 to n vCenters, each `server`, `username`, `password`, optional `port` (443); vault the passwords (`ansible-vault encrypt_string`) |
-| `failure_domains` | 1 to n failure domains (usually 3, for HA), each `name`, `region`, `zone`, `server` (its vCenter; optional with a single one), `datacenter`, `compute_cluster`, `datastore`, `networks`, optional `resource_pool` (default `<compute_cluster>/Resources`) and `folder`. One vCenter can hold several (other compute clusters or datacenters) |
+| `failure_domains` | 1 to n failure domains (usually 3, for HA), each `name`, `region`, `zone`, `server` (its vCenter; optional with a single one), `datacenter`, `compute_cluster`, `datastore`, `networks`, optional `resource_pool` and `folder` (installer defaults when left out). One vCenter can hold several (other compute clusters or datacenters) |
 | `bootstrap_ip` | the extra address for the temporary bootstrap VM |
 | `bootstrap_failure_domain` | optional; default the first failure domain |
-| `control_plane`, `compute` | VM size: `cpus`, `cores_per_socket`, `memory_mb` |
+| `control_plane`, `compute` | machine pools, every key optional (left out: the installer's default): `zones` (limit the pool to these failure domains; default all), `cpus`, `cores_per_socket`, `memory_mb`, `os_disk_gb` |
 | `publish`, `architecture` | optional, default `External` and `amd64` |
+
+A top-level `image_digest_sources` list in `vars/cluster.yaml` (`source`,
+`mirrors`) is written as `imageDigestSources`, for a mirror registry.
 
 Replicas are the sizes of the `masters` and `workers` groups. The run
 checks that every node, the bootstrap IP and the VIPs are inside
@@ -641,10 +644,11 @@ that every failure domain name used exists.
 
 With one failure domain, the host entries carry no `failureDomain`. With
 several, each entry gets one: the host's `vsphere_failure_domain:` from
-`inventory/hosts.yaml` if set, otherwise round-robin within its role
-(first master to the first domain, second master to the second, ...),
-which is how the installer itself spreads the control-plane machines and
-the worker replicas. Several failure domains also need vCenter-side
+`inventory/hosts.yaml` if set (it must be one of its pool's `zones`),
+otherwise round-robin over its pool's `zones` (first master to the first
+zone, second master to the second, ...), which is how the installer
+itself spreads the control-plane machines and the worker replicas. The
+bootstrap defaults to the first control-plane zone. Several failure domains also need vCenter-side
 setup that this automation doesn't do: the `openshift-region` and
 `openshift-zone` tag categories, with each domain's region tag on its
 datacenter and zone tag on its compute cluster.

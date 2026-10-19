@@ -151,6 +151,16 @@ managed_clusterset: default
 infraenv_labels:
   location: basement
 
+# Optional. Mirror registry for a disconnected install, written as
+# imageDigestSources by generate-vsphere-ipi-fix-ips-config.yaml.
+# image_digest_sources:
+#   - source: quay.io/openshift-release-dev/ocp-release
+#     mirrors:
+#       - CHANGE_ME-mirror.example.com:5000/openshift-release-dev/ocp-release
+#   - source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+#     mirrors:
+#       - CHANGE_ME-mirror.example.com:5000/openshift-release-dev/ocp-v4.0-art-dev
+
 # Optional. Only for generate-vsphere-ipi-fix-ips-config.yaml
 # (./run-cluster.sh <cluster> vsphere-ipi-fix-ips): installs this same
 # cluster (same names, node IPs, VIPs, gateway, DNS) as vSphere IPI VMs with
@@ -168,14 +178,20 @@ vsphere:
       password: "CHANGE_ME"
   bootstrap_ip: 10.10.10.30      # extra address for the temporary bootstrap VM
   # bootstrap_failure_domain: CHANGE_ME-fd-1   # default: the first failure domain
+  # Machine pools. Every key is optional; what's left out gets the
+  # installer's default. zones: limits the pool to those failure domains
+  # (default: all of them).
   control_plane:
+    zones: [CHANGE_ME-fd-1, CHANGE_ME-fd-2, CHANGE_ME-fd-3]
     cpus: 8
     cores_per_socket: 4
     memory_mb: 16384
+    os_disk_gb: 120
   compute:
     cpus: 16
     cores_per_socket: 8
     memory_mb: 65536
+    os_disk_gb: 120
   # 1 to n failure domains (usually 3 for HA), each on one vCenter
   # (`server`, optional with a single vCenter); one vCenter can hold several
   # (other compute clusters or datacenters). With more than one, the masters
@@ -192,7 +208,7 @@ vsphere:
       datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-1
       networks:
         - CHANGE_ME-VM-Network
-      # resource_pool: <compute_cluster>/Resources (default)
+      # resource_pool: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-1/Resources (optional)
       # folder: /CHANGE_ME-Datacenter-1/vm/CHANGE_ME-folder (optional)
     - name: CHANGE_ME-fd-2
       region: CHANGE_ME-region

@@ -22,8 +22,9 @@
 # platform.vsphere.hosts lists the bootstrap, then the masters and the
 # workers in inventory order. With more than one failure domain each entry
 # gets one: the host's vsphere_failure_domain inventory var, else round-robin
-# over the list per role (the bootstrap: bootstrap_failure_domain, else the
-# first). It has no hostname field: node names are the VM names the
+# over its machine pool's zones (vsphere.control_plane.zones /
+# vsphere.compute.zones, default every failure domain); the bootstrap:
+# bootstrap_failure_domain, else the first control-plane zone. It has no hostname field: node names are the VM names the
 # installer generates.
 
 - name: Validate inputs before loading any cluster-specific vars files
@@ -56,6 +57,12 @@
     # it may leave it out.
     failure_domains: "{{ vsphere.failure_domains | default([]) | vsphere_failure_domain_servers(vsphere.vcenters | default([])) }}"
     vcenter_servers: "{{ vsphere.vcenters | default([]) | map(attribute='server') | list }}"
+    fd_names: "{{ failure_domains | map(attribute='name') | list }}"
+    # A machine pool may be limited to some failure domains (zones:)
+    control_plane_pool: "{{ vsphere.control_plane | default({}) }}"
+    compute_pool: "{{ vsphere.compute | default({}) }}"
+    control_plane_zones: "{{ control_plane_pool.zones | default(fd_names) }}"
+    compute_zones: "{{ compute_pool.zones | default(fd_names) }}"
 
   tasks:
     - name: vars/cluster.yaml has everything the vSphere install-config needs
@@ -109,17 +116,32 @@
       loop_control:
         label: "{{ item.server | default('?') }}"
 
-    - name: Failure domains set on hosts exist in vsphere.failure_domains
-      vars:
-        fd_names: "{{ failure_domains | map(attribute='name') | list }}"
-        set_names: >-
-          {{ ([vsphere.bootstrap_failure_domain] if vsphere.bootstrap_failure_domain is defined else [])
-             + (masters + workers) | map('extract', hostvars) | selectattr('vsphere_failure_domain', 'defined')
-               | map(attribute='vsphere_failure_domain') | list }}
+    - name: Machine pool zones are failure domains
       assert:
         that:
-          - set_names | reject('in', fd_names) | list | length == 0
-        fail_msg: "Unknown failure domain(s) {{ set_names | reject('in', fd_names) | list }}; defined: {{ fd_names }}"
+          - control_plane_zones | length > 0 and compute_zones | length > 0
+          - (control_plane_zones + compute_zones) | reject('in', fd_names) | list | length == 0
+        fail_msg: >-
+          vsphere.control_plane.zones / vsphere.compute.zones must list failure domain
+          names; unknown: {{ (control_plane_zones + compute_zones) | reject('in', fd_names) | list }},
+          defined: {{ fd_names }}
+
+    - name: Failure domains set on hosts are in their machine pool's zones
+      assert:
+        that:
+          - hostvars[item].vsphere_failure_domain in (control_plane_zones if item in masters else compute_zones)
+        fail_msg: >-
+          {{ item }}'s vsphere_failure_domain {{ hostvars[item].vsphere_failure_domain }} is not one of its
+          pool's zones: {{ control_plane_zones if item in masters else compute_zones }}
+      loop: "{{ masters + workers }}"
+      when: hostvars[item].vsphere_failure_domain is defined
+
+    - name: The bootstrap failure domain exists
+      assert:
+        that:
+          - vsphere.bootstrap_failure_domain in fd_names
+        fail_msg: "bootstrap_failure_domain {{ vsphere.bootstrap_failure_domain }} is not one of {{ fd_names }}"
+      when: vsphere.bootstrap_failure_domain is defined
 
     - name: Every node has an IP inside machine_network_cidr
       assert:
@@ -152,7 +174,6 @@
         bootstrap_host:
           ip: "{{ vsphere.bootstrap_ip }}"
           vsphere_failure_domain: "{{ vsphere.bootstrap_failure_domain | default('') }}"
-        fd_names: "{{ failure_domains | map(attribute='name') | list }}"
       set_fact:
         vsphere_install_config: >-
           {{
@@ -166,20 +187,14 @@
                 'architecture': vsphere.architecture | default('amd64'),
                 'hyperthreading': 'Enabled',
                 'name': 'worker',
-                'platform': {'vsphere': {
-                  'cpus': vsphere.compute.cpus | default(4) | int,
-                  'coresPerSocket': vsphere.compute.cores_per_socket | default(2) | int,
-                  'memoryMB': vsphere.compute.memory_mb | default(16384) | int}},
+                'platform': compute_pool | vsphere_machine_pool,
                 'replicas': workers | length,
               }],
               'controlPlane': {
                 'architecture': vsphere.architecture | default('amd64'),
                 'hyperthreading': 'Enabled',
                 'name': 'master',
-                'platform': {'vsphere': {
-                  'cpus': vsphere.control_plane.cpus | default(4) | int,
-                  'coresPerSocket': vsphere.control_plane.cores_per_socket | default(2) | int,
-                  'memoryMB': vsphere.control_plane.memory_mb | default(16384) | int}},
+                'platform': control_plane_pool | vsphere_machine_pool,
                 'replicas': masters | length,
               },
               'metadata': {'name': cluster_name},
@@ -193,7 +208,7 @@
               'platform': {'vsphere': {
                 'hosts': bootstrap_host | vsphere_static_hosts(masters, workers, hostvars,
                                                                gateway, dns.server, network_profile.prefix_length,
-                                                               fd_names),
+                                                               fd_names, control_plane_zones, compute_zones),
                 'apiVIPs': api_vips,
                 'failureDomains': failure_domains | map('vsphere_failure_domain') | list,
                 'ingressVIPs': ingress_vips,
@@ -203,6 +218,7 @@
               'pullSecret': pull_secret,
               'sshKey': ssh_key,
             })
+            | combine({'imageDigestSources': image_digest_sources} if image_digest_sources is defined else {})
           }}
 
     - name: Ensure the output directory exists

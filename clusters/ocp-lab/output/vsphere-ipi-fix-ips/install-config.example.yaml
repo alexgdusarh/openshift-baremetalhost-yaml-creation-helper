@@ -10,6 +10,8 @@ compute:
       cpus: 16
       coresPerSocket: 8
       memoryMB: 65536
+      osDisk:
+        diskSizeGB: 120
   replicas: 1
 controlPlane:
   architecture: amd64
@@ -17,9 +19,15 @@ controlPlane:
   name: master
   platform:
     vsphere:
+      zones:
+      - CHANGE_ME-fd-1
+      - CHANGE_ME-fd-2
+      - CHANGE_ME-fd-3
       cpus: 8
       coresPerSocket: 4
       memoryMB: 16384
+      osDisk:
+        diskSizeGB: 120
   replicas: 3
 metadata:
   name: ocp-lab
@@ -87,7 +95,6 @@ platform:
         datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-1
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-1/Resources
       zone: CHANGE_ME-zone-1
     - name: CHANGE_ME-fd-2
       region: CHANGE_ME-region
@@ -98,7 +105,6 @@ platform:
         datastore: /CHANGE_ME-Datacenter-1/datastore/CHANGE_ME-datastore-2
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter-1/host/CHANGE_ME-Cluster-2/Resources
       zone: CHANGE_ME-zone-2
     - name: CHANGE_ME-fd-3
       region: CHANGE_ME-region
@@ -109,7 +115,6 @@ platform:
         datastore: /CHANGE_ME-Datacenter-2/datastore/CHANGE_ME-datastore-3
         networks:
         - CHANGE_ME-VM-Network
-        resourcePool: /CHANGE_ME-Datacenter-2/host/CHANGE_ME-Cluster-3/Resources
       zone: CHANGE_ME-zone-3
     ingressVIPs:
     - 10.10.10.9
