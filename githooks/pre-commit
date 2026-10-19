@@ -8,7 +8,8 @@
 #
 # Blocks a commit if a staged file:
 #   - is under clusters/ but outside the example clusters (ocp-lab,
-#     ocp-lab-kvm), or is ocp-lab's real output/hw_inventory.yaml
+#     ocp-lab-kvm), or is generated output (anything under an output/
+#     directory except the *.example.yaml copies)
 #   - adds a real pull secret (JSON, or base64 as in a dockerconfigjson
 #     Secret), a full SSH public key, or a private key
 #
@@ -18,7 +19,8 @@
 set -euo pipefail
 
 example_clusters='^clusters/(ocp-lab|ocp-lab-kvm)/'
-real_files='^clusters/ocp-lab/output/hw_inventory\.yaml$'
+generated_output='^clusters/[^/]+/output/'
+example_output='\.example\.yaml$'
 
 # Patterns are split so this file doesn't match itself.
 secret_patterns=(
@@ -32,8 +34,11 @@ fail=0
 
 # --- files that must never be committed -------------------------------------
 while IFS= read -r -d '' f; do
-  if [[ $f == clusters/* && ! $f =~ $example_clusters ]] || [[ $f =~ $real_files ]]; then
+  if [[ $f == clusters/* && ! $f =~ $example_clusters ]]; then
     echo "pre-commit: $f is real cluster data (only clusters/ocp-lab and clusters/ocp-lab-kvm are published)" >&2
+    fail=1
+  elif [[ $f =~ $generated_output && ! $f =~ $example_output ]]; then
+    echo "pre-commit: $f is generated output (only *.example.yaml copies are published)" >&2
     fail=1
   fi
 done < <(git diff --cached --name-only -z --diff-filter=ACMR)

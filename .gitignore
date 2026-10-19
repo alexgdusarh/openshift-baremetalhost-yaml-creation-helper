@@ -55,5 +55,9 @@ served-isos/
 clusters/*
 !clusters/ocp-lab/
 !clusters/ocp-lab-kvm/
-clusters/ocp-lab/output/hw_inventory.yaml
+# Generated output is never published, not even the examples' own: only
+# the *.example.yaml copies (CHANGE_ME in place of anything private).
+clusters/*/output/**
+!clusters/*/output/**/
+!clusters/*/output/**/*.example.yaml
 collections/

@@ -39,7 +39,7 @@
 #   ./run-cluster.sh ocp-lab acm-manifests
 #   ./run-cluster.sh ocp-lab all
 #   ./run-cluster.sh ocp-lab discover -- --ask-vault-pass
-#   ./run-cluster.sh ocp-lab-kvm discover -- -e bmc_password=password
+#   ./run-cluster.sh ocp-lab-kvm discover -- -e bmc_password=<password>
 #   ./run-cluster.sh ocp5 mount-verify-media -- -e target_host=master-00 -e rhcos_version=4.20 -e webhook_host=192.168.0.1
 #
 # mount-verify-media specifically exists to prevent exactly the mistake

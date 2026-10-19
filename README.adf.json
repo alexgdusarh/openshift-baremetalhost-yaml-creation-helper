@@ -11812,6 +11812,80 @@
       "content": [
         {
           "type": "text",
+          "text": "Generated output is never published either, not even the examples' own: everything under any "
+        },
+        {
+          "type": "text",
+          "text": "clusters/*/output/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " is ignored except the "
+        },
+        {
+          "type": "text",
+          "text": "*.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " copies. Those, and the examples' "
+        },
+        {
+          "type": "text",
+          "text": "vars/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "inventory/",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", carry "
+        },
+        {
+          "type": "text",
+          "text": "CHANGE_ME",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " in place of anything private (pull secret, SSH key, BMC and vCenter passwords)."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
           "text": "The generators leave "
         },
         {
@@ -12355,7 +12429,20 @@
         },
         {
           "type": "text",
-          "text": " outside the two examples (even with "
+          "text": " outside the two examples, or any generated output other than a "
+        },
+        {
+          "type": "text",
+          "text": "*.example.yaml",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " copy (even with "
         },
         {
           "type": "text",

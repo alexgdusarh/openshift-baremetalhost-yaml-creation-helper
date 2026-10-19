@@ -996,6 +996,12 @@ Only the two example clusters, `clusters/ocp-lab/` and
 ignores `clusters/*` except those two, so a new cluster directory is
 private the moment it's created - nothing to add per cluster.
 
+Generated output is never published either, not even the examples' own:
+everything under any `clusters/*/output/` is ignored except the
+`*.example.yaml` copies. Those, and the examples' `vars/` and
+`inventory/`, carry `CHANGE_ME` in place of anything private (pull
+secret, SSH key, BMC and vCenter passwords).
+
 The generators leave `CHANGE_ME` placeholders for the pull secret and SSH
 key. Fill them into a real cluster's generated files with
 `inject-secrets.sh`, which reads both from files outside the repo:
@@ -1024,8 +1030,9 @@ cp pull-secret.txt ~/.openshift/pull-secret.txt && chmod 600 ~/.openshift/pull-s
   if that's the one on `PATH`; `YQ=/path/to/yq` picks a specific binary.
 
 `githooks/pre-commit` is a second line of defence: it blocks a commit
-that stages anything under `clusters/` outside the two examples (even
-with `git add -f`), or adds a real pull secret (JSON or base64), a full
+that stages anything under `clusters/` outside the two examples, or any
+generated output other than a `*.example.yaml` copy (even with
+`git add -f`), or adds a real pull secret (JSON or base64), a full
 SSH public key, or a private key. Enable it once per clone:
 
 ```

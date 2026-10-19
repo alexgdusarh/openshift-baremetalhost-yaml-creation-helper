@@ -45,7 +45,7 @@ metadata:
 type: Opaque
 data:
   username: YWRtaW4=
-  password: cGFzc3dvcmQ=
+  password: Q0hBTkdFX01F
 ---
 apiVersion: metal3.io/v1alpha1
 kind: BareMetalHost

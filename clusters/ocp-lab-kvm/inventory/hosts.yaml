@@ -52,7 +52,7 @@ all:
       # is the normal case.
       vars:
         bmc_username: admin
-        bmc_password: password
+        bmc_password: "CHANGE_ME"   # your sushy-tools password; vault it or pass -e bmc_password=...
         bmc_use_ssl: false     # sushy-tools default: plain HTTP
         bmc_port: 8000          # sushy-tools default port
         bmc_validate_certs: false
